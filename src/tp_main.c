@@ -111,7 +111,7 @@ main(int argc, char * const argv[])
 	argv += optind;
 
 	if (argc > 0) {
-		protostr = optarg;
+		protostr = argv[0];
 		argc--;
 		argv++;
 	}
