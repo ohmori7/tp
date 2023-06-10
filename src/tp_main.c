@@ -9,6 +9,8 @@
 
 #include "tp.h"
 #include "tp_clock.h"
+#include "tp_handle.h"
+#include "tp_tcp.h"
 
 #define	TP_DEFAULT_PROTO	"tcp"
 #define	TP_DEFAULT_ADDR		"127.0.0.1"
@@ -65,7 +67,7 @@ usage(const char *errfmt, ...)
 	}
 	fprintf(stderr, "\
 Usage:\
-	%s: [-h] [-c <destination>] [-p <port>] [-t <transport>] [-B <local IP address>]\n\
+	%s: [-h] [-c <destination>] [-p <port>] [-B <local IP address>] [<transport>]\n\
 ",
 	    getprogname());
 	exit(EX_USAGE);
@@ -77,7 +79,8 @@ main(int argc, char * const argv[])
 	const char *protostr = TP_DEFAULT_PROTO;
 	const char *addrstr = TP_DEFAULT_ADDR;
 	const char *servstr = TP_DEFAULT_SERVICE;
-	int ch;
+	struct tp_handle *th;
+	int ch, error;
 	bool cflag;
 
 #ifndef HAVE_GETPROGNAME
@@ -94,9 +97,6 @@ main(int argc, char * const argv[])
 		case 'p':
 			servstr = optarg;
 			break;
-		case 't':
-			protostr = optarg;
-			break;
 		case 'B':
 			addrstr = optarg;	/* XXX */
 			break;
@@ -110,19 +110,28 @@ main(int argc, char * const argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 0)
-		usage("extra argument: %s\n", argv[0]);
+	if (argc > 0) {
+		protostr = optarg;
+		argc--;
+		argv++;
+	}
+
+	tp_clock_init();
+
+	tp_tcp_init();
+
+	th = tp_handle_lookup_by_name(protostr);
+	if (th == NULL)
+		usage("unknown protocol: %s\n", protostr);
 		/*NOTREACHED*/
 
 	/* XXX: this doesn't work on macOS... */
 	(void)signal(SIGINT, sigint);
 
-	tp_clock_init();
-
 	if (cflag)
-		tp_client_main(protostr, addrstr, servstr);
+		error = tp_handle_client(th, addrstr, servstr, argc, argv);
 	else
-		tp_server_main(protostr, addrstr, servstr);
+		error = tp_handle_server(th, addrstr, servstr, argc, argv);
 
-	return 0;
+	return error;
 }

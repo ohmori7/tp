@@ -14,7 +14,7 @@ CPPFLAGS=	-I$(PICODIR)
 CFLAGS=	-Wall -O2 -Werror
 LDFLAGS=	$(PICOLDADD)
 SRCDIR=	../src
-SRCS=	tp.c tp_clock.c tp_count.c tp_client.c tp_server.c tp_main.c
+SRCS=	tp.c tp_clock.c tp_count.c tp_handle.c tp_tcp.c tp_main.c
 SRCS+=	tp_picoquic.c
 
 #
