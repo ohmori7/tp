@@ -1,4 +1,5 @@
 #include <sys/queue.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,8 @@ tp_handle_register(const char *protostr,
 {
 	struct tp_handle *th;
 
+	assert(protostr != NULL);
+
 	th = malloc(sizeof(*th));
 	if (th == NULL)
 		return NULL;
@@ -40,6 +43,8 @@ struct tp_handle *
 tp_handle_lookup_by_name(const char *protostr)
 {
 	struct tp_handle *th;
+
+	assert(protostr != NULL);
 
 	TAILQ_FOREACH(th, &tp_handle_list, th_link)
 		if (strcmp(th->th_protostr, protostr) == 0)
