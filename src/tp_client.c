@@ -1,36 +1,21 @@
-#include <sys/socket.h>	/* XXX: send() */
+#include <sys/types.h>
 #include <err.h>
 #include <stdlib.h>
-
-#include <errno.h>	/* XXX */
 
 #include "tp.h"
 
 int
 tp_client_main(const char *protostr, const char *dststr, const char *srvstr)
 {
-	char buf[TP_SEGSIZE - TP_IPHDRLEN - TP_UDPHDRLEN];
-	int s;
-	ssize_t len;
+	struct tp *tp;
 
-	s = tp_connect(protostr, dststr, srvstr);
-	if (s == -1)
+	tp = tp_connect(protostr, dststr, srvstr);
+	if (tp == NULL)
 		errx(EXIT_FAILURE, "cannot connect to the server");
 
-	for (;;) {
-		len = send(s, buf, sizeof(buf), 0);
-		if (len == (ssize_t)-1)
-			switch (errno) {
-			case EAGAIN:
-#if EAGAIN != EWOULDBLOCK
-			case EWOULDBLOCK:
-#endif /* EAGAIN != EWOULDBLOCK */
-				break;
-			default:
-				err(EXIT_FAILURE, "send failed");
-				break;
-			}
-	}
+	for (;;)
+		if (tp_send(tp) == -1)
+			break;
 
 	return 0;
 }

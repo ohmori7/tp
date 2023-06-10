@@ -1,12 +1,20 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <errno.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "tp.h"
+
+struct tp {
+	enum tp_proto tp_proto;
+	int tp_sock;
+	struct sockaddr *tp_sa;
+};
 
 static struct tp_protomap {
 	const char *tpp_s;
@@ -18,6 +26,8 @@ static struct tp_protomap {
 	{ "quic",	TP_QUIC },
 	{ NULL, 0 },
 };
+
+static void tp_free(struct tp *);
 
 static int
 tp_socket_type_aton(const char *protostr)
@@ -31,10 +41,10 @@ tp_socket_type_aton(const char *protostr)
 }
 
 static int
-tp_socket_type(const char *protostr)
+tp_socket_type(enum tp_proto proto)
 {
 
-	switch (tp_socket_type_aton(protostr)) {
+	switch (proto) {
 	case TP_UDP:
 		return SOCK_DGRAM;
 		break;
@@ -44,22 +54,63 @@ tp_socket_type(const char *protostr)
 	case TP_SCTP:
 	case TP_QUIC:
 	default:
-		errx(EXIT_FAILURE, "unknown protocol: %s", protostr);
+		errx(EXIT_FAILURE, "unknown protocol: %u", proto);
 		/*NOTREACHED*/
 	}
 }
 
-static int
+static struct sockaddr *
+tp_sockaddr_dup(const struct sockaddr *sa0, socklen_t salen)
+{
+	struct sockaddr *sa;
+
+	sa = malloc(salen);
+	memcpy(sa, sa0, salen);
+
+	return sa;
+}
+
+static struct tp *
+tp_init(enum tp_proto proto, struct sockaddr *sa, socklen_t salen)
+{
+	struct tp *tp;
+
+	tp = malloc(sizeof(*tp));
+	if (tp == NULL)
+		return NULL;
+	tp->tp_proto = proto;
+	tp->tp_sock = -1;
+	tp->tp_sa = tp_sockaddr_dup(sa, salen);
+	if (tp->tp_sa == NULL) {
+		tp_free(tp);
+		return NULL;
+	}
+	return tp;
+}
+
+static void
+tp_free(struct tp *tp)
+{
+
+	if (tp->tp_sock != -1)
+		(void)close(tp->tp_sock);
+	if (tp->tp_sa != NULL)
+		free(tp->tp_sa);
+	free(tp);
+}
+
+static struct tp *
 tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
     int (*fn)(int, const struct sockaddr *, socklen_t))
 {
+	struct tp *tp;
 	struct addrinfo hints, *res, *res0;
 	const char *cause;
 	int s, error;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = tp_socket_type(protostr);
+	hints.ai_socktype = tp_socket_type(tp_socket_type_aton(protostr));
 	error = getaddrinfo(addrstr, srvstr, &hints, &res0);
 	if (error)
 		errx(EXIT_FAILURE, "%s", gai_strerror(error));
@@ -88,21 +139,109 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 		err(EXIT_FAILURE, "%s", cause);
 		/*NOTEACHED*/
 
+	tp = tp_init(tp_socket_type_aton(protostr),
+		res->ai_addr, res->ai_addrlen);
+	if (tp == NULL)
+		err(EXIT_FAILURE, "cannot create socket structure");
+		/*NOTEACHED*/
+	tp->tp_sock = s;
+
 	freeaddrinfo(res0);
 
-	return s;
+	return tp;
 }
 
-int
+struct tp *
 tp_connect(const char *protostr, const char *dststr, const char *dsrvstr)
 {
 
 	return tp_socket(protostr, dststr, dsrvstr, connect);
 }
 
-int
-tp_bind(const char *protostr, const char *addrstr, const char *srvstr)
+struct tp *
+tp_listen(const char *protostr, const char *addrstr, const char *srvstr)
 {
+	struct tp *tp;
+	int error;
 
-	return tp_socket(protostr, addrstr, srvstr, bind);
+	tp = tp_socket(protostr, addrstr, srvstr, bind);
+	if (tp == NULL)
+		return NULL;
+
+	error = listen(tp->tp_sock, 5 /* XXX */);
+	if (error == -1)
+		err(EXIT_FAILURE, "listen failed");
+
+	return tp;
+}
+
+struct tp *
+tp_accept(struct tp *ltp)
+{
+	struct tp *tp;
+	struct sockaddr_storage ss;
+	socklen_t sslen;
+	int s;
+
+	s = accept(ltp->tp_sock, (struct sockaddr*)&ss, &sslen);
+	if (s == -1) {
+		perror("accept failed");
+		return NULL;
+	}
+	tp = tp_init(ltp->tp_proto, (struct sockaddr *)&ss, sslen);
+	if (tp == NULL) {
+		(void)close(s);
+		return NULL;
+	}
+	tp->tp_sock = s;
+
+	return tp;
+}
+
+ssize_t
+tp_send(struct tp *tp)
+{
+	char buf[TP_MSS];
+	ssize_t len;
+
+	len = send(tp->tp_sock, buf, sizeof(buf), 0);
+	if (len == 0)
+		return (ssize_t)-1;
+	if (len == (ssize_t)-1)
+		switch (errno) {
+		case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+		case EWOULDBLOCK:
+#endif /* EAGAIN != EWOULDBLOCK */
+			return 0;
+		default:
+			err(EXIT_FAILURE, "send failed");
+			break;
+		}
+	return len;
+}
+
+ssize_t
+tp_recv(struct tp *tp)
+{
+	char buf[TP_MSS];
+	ssize_t len;
+
+	len = recv(tp->tp_sock, buf, sizeof(buf), 0);
+	if (len == 0) {
+		perror("connection closed");
+		return (ssize_t)-1;
+	}
+	if (len == (ssize_t)-1)
+		switch (errno) {
+		case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+		case EWOULDBLOCK:
+#endif /* EAGAIN != EWOULDBLOCK */
+			return 0;
+		default:
+			perror("recv failed");
+			break;
+		}
+	return len;
 }

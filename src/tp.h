@@ -5,12 +5,20 @@ enum tp_proto {
 	TP_QUIC,
 };
 
-#define TP_SEGSIZE	1500
-#define TP_IPHDRLEN	20
-#define	TP_UDPHDRLEN	20
+struct tp;
 
-int tp_connect(const char *, const char *, const char *);
-int tp_bind(const char *, const char *, const char *);
+#define TP_MTU		1500
+#define TP_IPHDRLEN	20
+#define	TP_THDRLEN	20
+#define TP_MSS		(1500 - TP_IPHDRLEN - TP_THDRLEN)
+
+struct tp *tp_connect(const char *, const char *, const char *);
+struct tp *tp_listen(const char *, const char *, const char *);
+
+struct tp *tp_accept(struct tp *);
+
+ssize_t tp_send(struct tp *);
+ssize_t tp_recv(struct tp *);
 
 int tp_client_main(const char *, const char *, const char *);
 int tp_server_main(const char *, const char *, const char *);
