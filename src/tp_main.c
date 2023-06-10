@@ -1,4 +1,5 @@
 #include <sys/types.h>	/* XXX: ssize_t... */
+#include <err.h>
 #include <unistd.h>
 
 #include <stdarg.h>
@@ -7,6 +8,7 @@
 #include <stdlib.h>
 
 #include "tp.h"
+#include "tp_clock.h"
 
 #define	TP_DEFAULT_PROTO	"tcp"
 #define	TP_DEFAULT_ADDR		"127.0.0.1"
@@ -114,6 +116,8 @@ main(int argc, char * const argv[])
 
 	/* XXX: this doesn't work on macOS... */
 	(void)signal(SIGINT, sigint);
+
+	tp_clock_init();
 
 	if (cflag)
 		tp_client_main(protostr, addrstr, servstr);

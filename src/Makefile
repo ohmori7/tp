@@ -2,7 +2,7 @@ PROG=	tp
 LIB=	tp
 CFLAGS=	-Wall -O2 -Werror
 SRCDIR=	../src
-SRCS=	tp.c tp_count.c tp_client.c tp_server.c tp_main.c
+SRCS=	tp.c tp_clock.c tp_count.c tp_client.c tp_server.c tp_main.c
 
 #
 #LIBX=	lib$(LIB).a

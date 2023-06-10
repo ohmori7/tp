@@ -1,3 +1,5 @@
+#define TP_ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
+
 enum tp_proto {
 	TP_UDP,
 	TP_TCP,
