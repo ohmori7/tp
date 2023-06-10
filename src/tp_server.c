@@ -21,6 +21,8 @@ tp_server_main(const char *protostr, const char *dststr, const char *srvstr)
 			continue;
 		while (tp_recv(tp) != (ssize_t)-1)
 			;
+		tp_free(tp);
+		fprintf(stderr, "done");
 	}
 
 	return 0;

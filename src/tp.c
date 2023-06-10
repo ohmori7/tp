@@ -28,8 +28,6 @@ static struct tp_protomap {
 	{ NULL, 0 },
 };
 
-static void tp_free(struct tp *);
-
 static int
 tp_socket_type_aton(const char *protostr)
 {
@@ -90,7 +88,7 @@ tp_init(enum tp_proto proto, struct sockaddr *sa, socklen_t salen)
 	return tp;
 }
 
-static void
+void
 tp_free(struct tp *tp)
 {
 

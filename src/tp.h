@@ -13,6 +13,8 @@ struct tp;
 #define	TP_THDRLEN	20
 #define TP_MSS		(1500 - TP_IPHDRLEN - TP_THDRLEN)
 
+void tp_free(struct tp *);
+
 struct tp *tp_connect(const char *, const char *, const char *);
 struct tp *tp_listen(const char *, const char *, const char *);
 
