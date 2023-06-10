@@ -116,9 +116,9 @@ main(int argc, char * const argv[])
 	(void)signal(SIGINT, sigint);
 
 	if (cflag)
-		tp_server_main(protostr, addrstr, servstr);
-	else
 		tp_client_main(protostr, addrstr, servstr);
+	else
+		tp_server_main(protostr, addrstr, servstr);
 
 	return 0;
 }
