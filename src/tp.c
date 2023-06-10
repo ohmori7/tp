@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <netdb.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <err.h>
 #include <stdio.h>
@@ -56,7 +57,7 @@ tp_socket_type(enum tp_proto proto)
 	case TP_SCTP:
 	case TP_QUIC:
 	default:
-		errx(EXIT_FAILURE, "unknown protocol: %u", proto);
+		errx(EX_SOFTWARE, "unknown protocol: %u", proto);
 		/*NOTREACHED*/
 	}
 }
@@ -117,7 +118,7 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 	hints.ai_socktype = tp_socket_type(tp_socket_type_aton(protostr));
 	error = getaddrinfo(addrstr, srvstr, &hints, &res0);
 	if (error)
-		errx(EXIT_FAILURE, "%s", gai_strerror(error));
+		errx(EX_DATAERR, "%s", gai_strerror(error));
 		/*NOTREACHED*/
 
 	s = -1;
@@ -140,13 +141,13 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 		break;
 	}
 	if (s == -1)
-		err(EXIT_FAILURE, "%s", cause);
+		err(EX_OSERR, "%s", cause);
 		/*NOTEACHED*/
 
 	tp = tp_init(tp_socket_type_aton(protostr),
 		res->ai_addr, res->ai_addrlen);
 	if (tp == NULL)
-		err(EXIT_FAILURE, "cannot create socket structure");
+		err(EX_OSERR, "cannot create socket structure");
 		/*NOTEACHED*/
 	tp->tp_sock = s;
 
@@ -174,7 +175,7 @@ tp_listen(const char *protostr, const char *addrstr, const char *srvstr)
 
 	error = listen(tp->tp_sock, 5 /* XXX */);
 	if (error == -1)
-		err(EXIT_FAILURE, "listen failed");
+		err(EX_OSERR, "listen failed");
 
 	return tp;
 }
@@ -222,7 +223,7 @@ tp_send(struct tp *tp)
 #endif /* EAGAIN != EWOULDBLOCK */
 			return 0;
 		default:
-			err(EXIT_FAILURE, "send failed");
+			err(EX_OSERR, "send failed");
 			break;
 		}
 	return len;

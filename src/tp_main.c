@@ -1,5 +1,6 @@
 #include <sys/types.h>	/* XXX: ssize_t... */
 #include <err.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <stdarg.h>
@@ -48,7 +49,7 @@ sigint(int sig)
 {
 
 	fprintf(stderr, "caught signal %d\n", sig);
-	exit(EXIT_FAILURE);
+	exit(EX_USAGE);
 }
 
 static void
@@ -68,7 +69,7 @@ Usage:\
 	%s: [-h] [-c <destination>] [-p <port>] [-t <transport>] [-B <local IP address>]\n\
 ",
 	    getprogname());
-	exit(EXIT_FAILURE);
+	exit(EX_USAGE);
 }
 
 int

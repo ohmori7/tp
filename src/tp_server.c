@@ -1,7 +1,7 @@
 #include <sys/socket.h>	/* XXX: send() */
 #include <err.h>
+#include <sysexits.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "tp.h"
 
@@ -14,7 +14,7 @@ tp_server_main(const char *protostr, const char *dststr, const char *srvstr)
 
 	ltp = tp_listen(protostr, dststr, srvstr);
 	if (ltp == NULL)
-		errx(EXIT_FAILURE, "cannot prepare for socket");
+		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/
 
 	for (;;) {
