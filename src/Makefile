@@ -11,7 +11,7 @@ OBJS=	$(SRCS:%.c=%.o)
 all:	$(PROG)
 
 .c.o:
-	$(CC) -c $(CPPFALGS) $(CFLAGS) $<
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
 
 #$(LIBX): $(OBJS)
 #	ar r $@ $(OBJS)
