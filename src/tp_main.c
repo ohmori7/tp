@@ -1,4 +1,3 @@
-#include <sys/types.h>	/* XXX: ssize_t... */
 #include <err.h>
 #include <sysexits.h>
 #include <unistd.h>
