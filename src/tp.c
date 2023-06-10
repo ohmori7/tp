@@ -22,6 +22,7 @@ static struct tp_protomap {
 } tp_protomaps[] = {
 	{ "udp",	TP_UDP },
 	{ "tcp",	TP_TCP },
+	{ "tls",	TP_TLS },
 	{ "sctp",	TP_SCTP },
 	{ "quic",	TP_QUIC },
 	{ NULL, 0 },
@@ -49,6 +50,7 @@ tp_socket_type(enum tp_proto proto)
 		return SOCK_DGRAM;
 		break;
 	case TP_TCP:
+	case TP_TLS:
 		return SOCK_STREAM;
 		break;
 	case TP_SCTP:

@@ -1,6 +1,7 @@
 enum tp_proto {
 	TP_UDP,
 	TP_TCP,
+	TP_TLS,
 	TP_SCTP,
 	TP_QUIC,
 };
