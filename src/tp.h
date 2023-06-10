@@ -15,6 +15,8 @@ struct tp;
 #define	TP_THDRLEN	20
 #define TP_MSS		(1500 - TP_IPHDRLEN - TP_THDRLEN)
 
+int tp_proto_aton(const char *);
+
 void tp_free(struct tp *);
 
 struct tp *tp_connect(const char *, const char *, const char *);

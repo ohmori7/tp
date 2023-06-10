@@ -31,8 +31,8 @@ static struct tp_protomap {
 	{ NULL, 0 },
 };
 
-static int
-tp_type_aton(const char *protostr)
+int
+tp_proto_aton(const char *protostr)
 {
 	const struct tp_protomap *tpp;
 
@@ -115,7 +115,7 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = tp_socket_type(tp_type_aton(protostr));
+	hints.ai_socktype = tp_socket_type(tp_proto_aton(protostr));
 	error = getaddrinfo(addrstr, srvstr, &hints, &res0);
 	if (error)
 		errx(EX_DATAERR, "%s", gai_strerror(error));
@@ -144,7 +144,7 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 		err(EX_OSERR, "%s", cause);
 		/*NOTEACHED*/
 
-	tp = tp_init(tp_type_aton(protostr),
+	tp = tp_init(tp_proto_aton(protostr),
 		res->ai_addr, res->ai_addrlen);
 	if (tp == NULL)
 		err(EX_OSERR, "cannot create socket structure");
