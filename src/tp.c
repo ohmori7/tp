@@ -9,11 +9,13 @@
 #include <string.h>
 
 #include "tp.h"
+#include "tp_count.h"
 
 struct tp {
 	enum tp_proto tp_proto;
 	int tp_sock;
 	struct sockaddr *tp_sa;
+	struct tp_count tp_recv, tp_sent;
 };
 
 static struct tp_protomap {
@@ -85,6 +87,8 @@ tp_init(enum tp_proto proto, struct sockaddr *sa, socklen_t salen)
 		tp_free(tp);
 		return NULL;
 	}
+	tp_count_init(&tp->tp_recv, "recv");
+	tp_count_init(&tp->tp_sent, "sent");
 	return tp;
 }
 
@@ -207,6 +211,9 @@ tp_send(struct tp *tp)
 	len = send(tp->tp_sock, buf, sizeof(buf), 0);
 	if (len == 0)
 		return (ssize_t)-1;
+
+	tp_count_inc(&tp->tp_sent, len);
+
 	if (len == (ssize_t)-1)
 		switch (errno) {
 		case EAGAIN:
@@ -232,6 +239,9 @@ tp_recv(struct tp *tp)
 		perror("connection closed");
 		return (ssize_t)-1;
 	}
+
+	tp_count_inc(&tp->tp_recv, len);
+
 	if (len == (ssize_t)-1)
 		switch (errno) {
 		case EAGAIN:
@@ -243,5 +253,6 @@ tp_recv(struct tp *tp)
 			perror("recv failed");
 			break;
 		}
+
 	return len;
 }
