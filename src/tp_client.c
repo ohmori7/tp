@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <err.h>
+
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "tp.h"
@@ -8,6 +10,8 @@ int
 tp_client_main(const char *protostr, const char *dststr, const char *srvstr)
 {
 	struct tp *tp;
+
+	fprintf(stderr, "connect to %s.%s using %s\n", dststr, srvstr, protostr);
 
 	tp = tp_connect(protostr, dststr, srvstr);
 	if (tp == NULL)
