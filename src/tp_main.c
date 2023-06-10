@@ -41,6 +41,14 @@ getprogname(void)
 }
 #endif /* ! HAVE_GET_PROGNAME */
 
+void
+sigint(int sig)
+{
+
+	fprintf(stderr, "caught signal %d\n", sig);
+	exit(EXIT_FAILURE);
+}
+
 static void
 usage(const char *errfmt, ...)
 {
@@ -103,6 +111,9 @@ main(int argc, char * const argv[])
 	if (argc != 0)
 		usage("extra argument: %s\n", argv[0]);
 		/*NOTREACHED*/
+
+	/* XXX: this doesn't work on macOS... */
+	(void)signal(SIGINT, sigint);
 
 	if (cflag)
 		tp_server_main(protostr, addrstr, servstr);
