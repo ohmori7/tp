@@ -19,6 +19,10 @@ int tp_proto_aton(const char *);
 
 void tp_free(struct tp *);
 
+struct addrinfo; /* XXX: in netdb.h though.. */
+int tp_name_resolve(int, const char *, const char *,
+    int (*)(const struct addrinfo *, void *), void *);
+
 struct tp *tp_connect(const char *, const char *, const char *);
 struct tp *tp_listen(const char *, const char *, const char *);
 

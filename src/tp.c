@@ -15,7 +15,6 @@
 struct tp {
 	enum tp_proto tp_proto;
 	int tp_sock;
-	struct sockaddr *tp_sa;
 	struct tp_count tp_recv, tp_sent;
 };
 
@@ -62,19 +61,8 @@ tp_socket_type(enum tp_proto proto)
 	}
 }
 
-static struct sockaddr *
-tp_sockaddr_dup(const struct sockaddr *sa0, socklen_t salen)
-{
-	struct sockaddr *sa;
-
-	sa = malloc(salen);
-	memcpy(sa, sa0, salen);
-
-	return sa;
-}
-
 static struct tp *
-tp_init(enum tp_proto proto, struct sockaddr *sa, socklen_t salen)
+tp_init(enum tp_proto proto)
 {
 	struct tp *tp;
 
@@ -83,11 +71,6 @@ tp_init(enum tp_proto proto, struct sockaddr *sa, socklen_t salen)
 		return NULL;
 	tp->tp_proto = proto;
 	tp->tp_sock = -1;
-	tp->tp_sa = tp_sockaddr_dup(sa, salen);
-	if (tp->tp_sa == NULL) {
-		tp_free(tp);
-		return NULL;
-	}
 	tp_count_init(&tp->tp_recv, "recv");
 	tp_count_init(&tp->tp_sent, "sent");
 	return tp;
@@ -99,59 +82,78 @@ tp_free(struct tp *tp)
 
 	if (tp->tp_sock != -1)
 		(void)close(tp->tp_sock);
-	if (tp->tp_sa != NULL)
-		free(tp->tp_sa);
 	free(tp);
+}
+
+int
+tp_name_resolve(int socktype, const char *addrstr, const char *srvstr,
+    int (*cb)(const struct addrinfo *, void *), void *arg)
+{
+	struct addrinfo hints, *res, *res0;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = socktype;
+	error = getaddrinfo(addrstr, srvstr, &hints, &res0);
+	if (error != 0)
+		errx(EX_DATAERR, "%s", gai_strerror(error));
+		/*NOTREACHED*/
+
+	error = -1;
+	for (res = res0; res != NULL; res = res->ai_next)
+		if ((error = (*cb)(res, arg)) == 0)
+			break;
+	return error;
+}
+
+struct tp_socket_cb_arg {
+	int (*tsca_cb)(int, const struct sockaddr *, socklen_t);
+	const char *tsca_cbname;
+	int tsca_sock;
+	const char *tsca_cause;
+};
+
+static int
+tp_socket_cb(const struct addrinfo *res, void *arg)
+{
+	struct tp_socket_cb_arg *tsca = arg;
+	int s, error;
+
+	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (s == -1) {
+		tsca->tsca_cause = "socket";
+		return -1;
+	}
+	error = (*tsca->tsca_cb)(s, res->ai_addr, res->ai_addrlen);
+	if (error == -1) {
+		(void)close(s);
+		tsca->tsca_cause = tsca->tsca_cbname;
+		return -1;
+	}
+	tsca->tsca_sock = s;
+	return 0;
 }
 
 static struct tp *
 tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
     int (*cb)(int, const struct sockaddr *, socklen_t), const char *cbname)
 {
+	struct tp_socket_cb_arg tsca = { cb, cbname, -1, NULL };
 	struct tp *tp;
-	struct addrinfo hints, *res, *res0;
-	const char *cause;
-	int s, error;
+	int error;
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = tp_socket_type(tp_proto_aton(protostr));
-	error = getaddrinfo(addrstr, srvstr, &hints, &res0);
-	if (error)
-		errx(EX_DATAERR, "%s", gai_strerror(error));
-		/*NOTREACHED*/
-
-	s = -1;
-	cause = NULL;
-	for (res = res0; res != NULL; res = res->ai_next) {
-		s = socket(res->ai_family, res->ai_socktype,
-		    res->ai_protocol);
-		if (s == -1) {
-			cause = "socket";
-			continue;
-		}
-		error = (*cb)(s, res->ai_addr, res->ai_addrlen);
-		if (error == -1) {
-			cause = cbname;
-			(void)close(s);
-			s = -1;
-			continue;
-		}
-		/* XXX: options. */
-		break;
-	}
-	if (s == -1)
-		err(EX_OSERR, "%s", cause);
+	error = tp_name_resolve(tp_socket_type(tp_proto_aton(protostr)),
+	    addrstr, srvstr, tp_socket_cb, &tsca);
+	if (error == -1)
+		err(EX_OSERR, "%s", tsca.tsca_cause);
 		/*NOTEACHED*/
 
-	tp = tp_init(tp_proto_aton(protostr),
-		res->ai_addr, res->ai_addrlen);
+	tp = tp_init(tp_proto_aton(protostr));
 	if (tp == NULL)
 		err(EX_OSERR, "cannot create socket structure");
 		/*NOTEACHED*/
-	tp->tp_sock = s;
-
-	freeaddrinfo(res0);
+	tp->tp_sock = tsca.tsca_sock;
 
 	return tp;
 }
@@ -193,7 +195,7 @@ tp_accept(struct tp *ltp)
 		perror("accept failed");
 		return NULL;
 	}
-	tp = tp_init(ltp->tp_proto, (struct sockaddr *)&ss, sslen);
+	tp = tp_init(ltp->tp_proto);
 	if (tp == NULL) {
 		(void)close(s);
 		return NULL;

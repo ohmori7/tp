@@ -11,6 +11,7 @@
 #include "tp_clock.h"
 #include "tp_handle.h"
 #include "tp_tcp.h"
+#include "tp_picoquic.h"
 
 #define	TP_DEFAULT_PROTO	"tcp"
 #define	TP_DEFAULT_ADDR		"127.0.0.1"
@@ -66,10 +67,21 @@ usage(const char *errfmt, ...)
 		va_end(ap);
 	}
 	fprintf(stderr, "\
-Usage:\
+Usage:\n\
 	%s: [-h] [-c <destination>] [-p <port>] [-B <local IP address>] [<transport>]\n\
+\n\
+Examples:\n\
+	%s\n\
+	%s -c localhost\n\
+	%s picoquic certificate key\n\
+	%s -c localhost picoquic\n\
 ",
-	    getprogname());
+	    getprogname(),
+	    getprogname(),
+	    getprogname(),
+	    getprogname(),
+	    getprogname()
+	    );
 	exit(EX_USAGE);
 }
 
@@ -119,6 +131,7 @@ main(int argc, char * const argv[])
 	tp_clock_init();
 
 	tp_tcp_init();
+	tp_picoquic_init();
 
 	th = tp_handle_lookup_by_name(protostr);
 	if (th == NULL)
