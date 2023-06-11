@@ -342,8 +342,7 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 			(void)picoquic_close(cnx, 0);
 			break;
 		}
-#define TP_PICOQUIC_DATA_SIZE	(512ULL << 10 << 10)
-		tpsctx->tpsctx_total = TP_PICOQUIC_DATA_SIZE;
+		tpsctx->tpsctx_total = TP_DATASIZE;
 		error = picoquic_mark_active_stream(cnx, tpsctx->tpsctx_id, 1, tpsctx);
 		if (error != 0) {
 			tp_picoquic_stream_ctx_destroy(tpsctx);

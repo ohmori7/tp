@@ -15,6 +15,8 @@ struct tp;
 #define	TP_THDRLEN	20
 #define TP_MSS		(1500 - TP_IPHDRLEN - TP_THDRLEN)
 
+#define TP_DATASIZE	(1024ULL << 10 << 10)	/* 1GB */
+
 int tp_proto_aton(const char *);
 
 void tp_free(struct tp *);
