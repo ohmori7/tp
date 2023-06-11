@@ -19,9 +19,8 @@ tp_tcp_client(const char *dststr, const char *srvstr,
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/
 
-	for (;;)
-		if (tp_send(tp) == -1)
-			break;
+	while (tp_recv(tp) != (ssize_t)-1)
+		;
 
 	return 0;
 }
@@ -47,7 +46,7 @@ tp_tcp_server(const char *dststr, const char *srvstr,
 
 		fprintf(stderr, "connected\n");
 
-		while (tp_recv(tp) != (ssize_t)-1)
+		while (tp_send(tp) != (ssize_t)-1)
 			;
 
 		fprintf(stderr, "disconnected\n");

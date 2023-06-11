@@ -211,11 +211,18 @@ tp_send(struct tp *tp)
 	char buf[TP_MSS];
 	ssize_t len;
 
-	len = send(tp->tp_sock, buf, sizeof(buf), 0);
+	len = sizeof(buf);
+	if (tp->tp_sent.tpc_total_bytes + len > TP_DATASIZE)
+		len = TP_DATASIZE - tp->tp_sent.tpc_total_bytes;
+
+	len = send(tp->tp_sock, buf, len, 0);
 	if (len == 0)
 		return (ssize_t)-1;
 
 	tp_count_inc(&tp->tp_sent, len);
+
+	if (tp->tp_sent.tpc_total_bytes >= TP_DATASIZE)
+		return -1;	/* done */
 
 	if (len == (ssize_t)-1)
 		switch (errno) {
@@ -225,7 +232,7 @@ tp_send(struct tp *tp)
 #endif /* EAGAIN != EWOULDBLOCK */
 			return 0;
 		default:
-			err(EX_OSERR, "send failed");
+			perror("send failed");
 			break;
 		}
 	return len;
