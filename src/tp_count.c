@@ -28,6 +28,20 @@ tp_count_value(size_t v)
 	return tpcv;
 }
 
+static size_t
+tp_count_bps(size_t bytes, struct timespec ts)
+{
+	size_t bitsx;
+	time_t timex;
+
+	/* XXX: may overflow... */
+	timex = ts.tv_sec * 100 + ts.tv_nsec / 10000000;
+	if (timex == 0)
+		return (ssize_t)-1;
+	bitsx = (bytes << 3) * 100;
+	return bitsx / timex;
+}
+
 static void
 tp_count_update(struct tp_count *tpc, struct timespec lasttime)
 {
@@ -49,7 +63,7 @@ tp_count_stats(struct tp_count *tpc)
 	if (tp_clock_get(&now) == -1)
 		err(EX_OSERR, "tp_clock_get() failed");
 	time = tp_clock_sub(now, tpc->tpc_lasttime);
-	bps = tp_count_value((tpc->tpc_bytes / time.tv_sec) << 3);
+	bps = tp_count_value(tp_count_bps(tpc->tpc_bytes, time));
 
 	fprintf(stderr, "%s %zu packets, %zu %sbps (%zu %sbytes, %zu errors) for %lld.%09lld secs\n",
 	    tpc->tpc_desc, tpc->tpc_count,
@@ -79,7 +93,7 @@ tp_count_final_stats(struct tp_count *tpc)
 
 	bytes = tp_count_value(tpc->tpc_total_bytes);
 	time = tp_clock_sub(tpc->tpc_lasttime, tpc->tpc_firsttime);
-	bps = tp_count_value((tpc->tpc_total_bytes / time.tv_sec) << 3);
+	bps = tp_count_value(tp_count_bps(tpc->tpc_total_bytes, time));
 
 	fprintf(stderr, "%s %zu packets, %zu %sbps (%zu %sbytes, %zu errors) for %lld.%09lld secs\n",
 	    tpc->tpc_desc, tpc->tpc_total_count,
