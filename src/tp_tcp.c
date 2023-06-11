@@ -26,7 +26,6 @@ tp_tcp_client(const char *dststr, const char *srvstr,
 	return 0;
 }
 
-
 static int
 tp_tcp_server(const char *dststr, const char *srvstr,
     int argc, char * const argv[])
