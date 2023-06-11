@@ -106,7 +106,7 @@ tp_free(struct tp *tp)
 
 static struct tp *
 tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
-    int (*fn)(int, const struct sockaddr *, socklen_t))
+    int (*cb)(int, const struct sockaddr *, socklen_t), const char *cbname)
 {
 	struct tp *tp;
 	struct addrinfo hints, *res, *res0;
@@ -130,9 +130,9 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 			cause = "socket";
 			continue;
 		}
-		error = fn(s, res->ai_addr, res->ai_addrlen);
+		error = (*cb)(s, res->ai_addr, res->ai_addrlen);
 		if (error == -1) {
-			cause = "connect";
+			cause = cbname;
 			(void)close(s);
 			s = -1;
 			continue;
@@ -160,7 +160,7 @@ struct tp *
 tp_connect(const char *protostr, const char *dststr, const char *dsrvstr)
 {
 
-	return tp_socket(protostr, dststr, dsrvstr, connect);
+	return tp_socket(protostr, dststr, dsrvstr, connect, "connect");
 }
 
 struct tp *
@@ -169,7 +169,7 @@ tp_listen(const char *protostr, const char *addrstr, const char *srvstr)
 	struct tp *tp;
 	int error;
 
-	tp = tp_socket(protostr, addrstr, srvstr, bind);
+	tp = tp_socket(protostr, addrstr, srvstr, bind, "bind");
 	if (tp == NULL)
 		return NULL;
 
