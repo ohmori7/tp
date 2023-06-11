@@ -16,6 +16,8 @@ struct tp {
 	enum tp_proto tp_proto;
 	int tp_sock;
 	struct tp_count tp_recv, tp_sent;
+	size_t tp_buflen;
+	uint8_t tp_buf[TP_MSS];
 };
 
 static struct tp_protomap {
@@ -73,6 +75,7 @@ tp_init(enum tp_proto proto)
 	tp->tp_sock = -1;
 	tp_count_init(&tp->tp_recv, "recv");
 	tp_count_init(&tp->tp_sent, "sent");
+	tp->tp_buflen = sizeof(tp->tp_buf);
 	return tp;
 }
 
@@ -208,14 +211,13 @@ tp_accept(struct tp *ltp)
 ssize_t
 tp_send(struct tp *tp)
 {
-	char buf[TP_MSS];
 	ssize_t len;
 
-	len = sizeof(buf);
+	len = tp->tp_buflen;
 	if (tp->tp_sent.tpc_total_bytes + len > TP_DATASIZE)
 		len = TP_DATASIZE - tp->tp_sent.tpc_total_bytes;
 
-	len = send(tp->tp_sock, buf, len, 0);
+	len = send(tp->tp_sock, tp->tp_buf, len, 0);
 	if (len == 0)
 		return (ssize_t)-1;
 
@@ -244,10 +246,9 @@ tp_send(struct tp *tp)
 ssize_t
 tp_recv(struct tp *tp)
 {
-	char buf[TP_MSS];
 	ssize_t len;
 
-	len = recv(tp->tp_sock, buf, sizeof(buf), 0);
+	len = recv(tp->tp_sock, tp->tp_buf, tp->tp_buflen, 0);
 	if (len == 0) {
 		fprintf(stderr, "connection closed\n");
 		tp_count_finalize(&tp->tp_recv);
