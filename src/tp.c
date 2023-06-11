@@ -221,8 +221,11 @@ tp_send(struct tp *tp)
 
 	tp_count_inc(&tp->tp_sent, len);
 
-	if (tp->tp_sent.tpc_total_bytes >= TP_DATASIZE)
-		return -1;	/* done */
+	if (tp->tp_sent.tpc_total_bytes >= TP_DATASIZE) {
+		tp_count_finalize(&tp->tp_sent);
+		tp_count_final_stats(&tp->tp_sent);
+		return (ssize_t)-1;	/* done */
+	}
 
 	if (len == (ssize_t)-1)
 		switch (errno) {
@@ -246,7 +249,9 @@ tp_recv(struct tp *tp)
 
 	len = recv(tp->tp_sock, buf, sizeof(buf), 0);
 	if (len == 0) {
-		perror("connection closed");
+		fprintf(stderr, "connection closed\n");
+		tp_count_finalize(&tp->tp_recv);
+		tp_count_final_stats(&tp->tp_recv);
 		return (ssize_t)-1;
 	}
 

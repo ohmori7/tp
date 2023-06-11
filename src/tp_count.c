@@ -29,6 +29,14 @@ tp_count_value(size_t v)
 }
 
 static void
+tp_count_update(struct tp_count *tpc, struct timespec lasttime)
+{
+
+	tpc->tpc_count = tpc->tpc_bytes = tpc->tpc_errors = 0;
+	tpc->tpc_lasttime = lasttime;
+}
+
+void
 tp_count_stats(struct tp_count *tpc)
 {
 	struct timespec now, time;
@@ -50,11 +58,35 @@ tp_count_stats(struct tp_count *tpc)
 	    tpc->tpc_errors,
 	    (long long)time.tv_sec, (long long)time.tv_nsec);
 
-	tpc->tpc_total_count += tpc->tpc_count;
-	tpc->tpc_total_bytes += tpc->tpc_bytes;
-	tpc->tpc_total_errors += tpc->tpc_errors;
-	tpc->tpc_count = tpc->tpc_bytes = tpc->tpc_errors = 0;
-	tpc->tpc_lasttime = now;
+	tp_count_update(tpc, now);
+}
+
+void
+tp_count_finalize(struct tp_count *tpc)
+{
+	struct timespec now;
+
+	if (tp_clock_get(&now) == -1)
+		err(EX_OSERR, "tp_clock_get() failed");
+	tp_count_update(tpc, now);
+}
+
+void
+tp_count_final_stats(struct tp_count *tpc)
+{
+	struct timespec time;
+	struct tp_count_value bytes, bps;
+
+	bytes = tp_count_value(tpc->tpc_total_bytes);
+	time = tp_clock_sub(tpc->tpc_lasttime, tpc->tpc_firsttime);
+	bps = tp_count_value((tpc->tpc_total_bytes / time.tv_sec) << 3);
+
+	fprintf(stderr, "%s %zu packets, %zu %sbps (%zu %sbytes, %zu errors) for %lld.%09lld secs\n",
+	    tpc->tpc_desc, tpc->tpc_total_count,
+	    bps.tpcv_value, bps.tpcv_prefix,
+	    bytes.tpcv_value, bytes.tpcv_prefix,
+	    tpc->tpc_total_errors,
+	    (long long)time.tv_sec, (long long)time.tv_nsec);
 }
 
 void
@@ -82,6 +114,8 @@ tp_count_inc(struct tp_count *tpc, size_t bytes)
 
 	tpc->tpc_count++;
 	tpc->tpc_bytes += bytes;
+	tpc->tpc_total_count++;
+	tpc->tpc_total_bytes += bytes;
 
 	tp_count_stats(tpc);
 }

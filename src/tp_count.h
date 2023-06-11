@@ -15,4 +15,6 @@ struct tp_count {
 };
 
 void tp_count_init(struct tp_count *, const char *);
+void tp_count_finalize(struct tp_count *);
+void tp_count_final_stats(struct tp_count *);
 void tp_count_inc(struct tp_count *, size_t);
