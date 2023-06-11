@@ -1,4 +1,3 @@
-#include <sys/socket.h>	/* XXX: send() */
 #include <err.h>
 #include <sysexits.h>
 #include <stdio.h>
