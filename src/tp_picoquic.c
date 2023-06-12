@@ -10,6 +10,7 @@
 #include "picoquic_utils.h"
 
 #include "tp.h"
+#include "tp_count.h"
 #include "tp_handle.h"
 #include "tp_picoquic.h"
 
@@ -34,8 +35,8 @@ struct tp_picoquic_ctx {
 
 struct tp_picoquic_stream_ctx {
 	uint64_t tpsctx_id;
+	struct tp_count tpsctx_count;
 	size_t tpsctx_total;
-	size_t tpsctx_count;
 	size_t tpsctx_bytes;
 };
 
@@ -49,8 +50,8 @@ tp_picoquic_stream_ctx_new(uint64_t id)
 		return NULL;
 	tpsctx->tpsctx_id = id;
 	tpsctx->tpsctx_total = 0;
-	tpsctx->tpsctx_count = 0;
 	tpsctx->tpsctx_bytes = 0;
+	tp_count_init(&tpsctx->tpsctx_count, "picoquic");
 #ifdef DEBUG
 	fprintf(stderr, "stream ctx %p: create\n", tpsctx);
 #endif /* DEBUG */
@@ -137,10 +138,15 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 				break;
 			}
 			fprintf(stderr, "open stream\n");
+		} else {
+			assert(tpsctx != NULL);
+			tp_count_inc(&tpsctx->tpsctx_count, len);
 		}
 		if (event == picoquic_callback_stream_fin) {
 			fprintf(stderr, "fin\n");
 			assert(tpsctx != NULL);
+			tp_count_finalize(&tpsctx->tpsctx_count);
+			tp_count_final_stats(&tpsctx->tpsctx_count);
 			tp_picoquic_stream_ctx_destroy(tpsctx);
 			tpctx->tpctx_status = tp_picoquic_status_done;
 			error = picoquic_close(cnx, 0);
@@ -273,7 +279,6 @@ tp_picoquic_server_send(struct tp_picoquic_stream_ctx *tpsctx, uint8_t *bytes, s
 	left = tpsctx->tpsctx_total - tpsctx->tpsctx_bytes;
 	if (left < len)
 		len = left;
-	tpsctx->tpsctx_count++;
 	tpsctx->tpsctx_bytes += len;
 	is_fin = (tpsctx->tpsctx_total == tpsctx->tpsctx_bytes);
 	is_still_active = ! is_fin;
