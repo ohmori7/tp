@@ -402,6 +402,7 @@ tp_picoquic_server(const char *dststr, const char *servstr,
 	picoquic_set_cookie_mode(quic, 0);
 	picoquic_set_default_congestion_algorithm(quic, TP_PICOQUIC_CONGESTION_ALG);
 #ifdef notyet
+	picoquic_set_mtu_max(quic, 16384);	/* XXX */
 	picoquic_set_qlog(quic, dir);
 	picoquic_set_log_level(quic, 1);
 	picoquic_set_key_log_file_from_env(quic);
