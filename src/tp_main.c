@@ -11,6 +11,7 @@
 #include "tp_clock.h"
 #include "tp_handle.h"
 #include "tp_tcp.h"
+#include "tp_tls.h"
 #include "tp_picoquic.h"
 
 #define	TP_DEFAULT_PROTO	"tcp"
@@ -131,6 +132,7 @@ main(int argc, char * const argv[])
 	tp_clock_init();
 
 	tp_tcp_init();
+	tp_tls_init();
 	tp_picoquic_init();
 
 	th = tp_handle_lookup_by_name(protostr);
