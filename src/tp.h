@@ -19,6 +19,8 @@ struct tp;
 
 int tp_proto_aton(const char *);
 
+void *tp_buf(struct tp *);
+
 void tp_free(struct tp *);
 
 struct addrinfo; /* XXX: in netdb.h though.. */
@@ -30,6 +32,7 @@ struct tp *tp_listen(const char *, const char *, const char *);
 
 struct tp *tp_accept(struct tp *);
 
+ssize_t tp_write(struct tp *, void *, size_t);
 ssize_t tp_send(struct tp *);
 ssize_t tp_recv(struct tp *);
 

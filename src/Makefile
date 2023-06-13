@@ -1,8 +1,11 @@
 #
 PICOTLSDIR=	../../picotls
+PICOTLSINCDIR=	$(PICOTLSDIR)/include
 PICOTLSLDADD=	-L$(PICOTLSDIR) -lpicotls-core -lpicotls-openssl\
 		-lpicotls-fusion	\
 		-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto
+#
+OPENSSLINCDIR=	 /usr/local/Cellar/openssl@1.1/1.1.1s/include/
 #		-lpicotls-minicrypto
 PICODIR=	../../picoquick/picoquic
 PICOLIBDIR=	../../picoquick
@@ -10,12 +13,12 @@ PICOLDADD=	-L$(PICOLIBDIR) -lpicoquic-core $(PICOTLSLDADD)
 #
 PROG=	tp
 LIB=	tp
-CPPFLAGS=	-I$(PICODIR)
+CPPFLAGS=	-I$(PICODIR) -I$(PICOTLSINCDIR) -I$(OPENSSLINCDIR)
 CFLAGS=	-Wall -O2 -Werror
 LDFLAGS=	$(PICOLDADD)
 SRCDIR=	../src
-SRCS=	tp.c tp_clock.c tp_count.c tp_handle.c tp_tcp.c tp_main.c
-SRCS+=	tp_picoquic.c
+SRCS=	tp.c tp_clock.c tp_count.c tp_handle.c tp_main.c tp_tcp.c
+SRCS+=	tp_tls.c tp_picoquic.c
 
 #
 #LIBX=	lib$(LIB).a

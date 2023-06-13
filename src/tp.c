@@ -63,6 +63,13 @@ tp_socket_type(enum tp_proto proto)
 	}
 }
 
+void *
+tp_buf(struct tp *tp)
+{
+
+	return tp_buf;
+}
+
 static struct tp *
 tp_init(enum tp_proto proto)
 {
@@ -206,6 +213,25 @@ tp_accept(struct tp *ltp)
 	tp->tp_sock = s;
 
 	return tp;
+}
+
+ssize_t
+tp_write(struct tp *tp, void *data, size_t datalen)
+{
+	ssize_t len;
+
+  again:
+	len = write(tp->tp_sock, data, datalen);
+	if (len != (ssize_t)-1)
+		switch (errno) {
+		case EINTR:
+		case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+		case EWOULDBLOCK:
+#endif /* EAGAIN != EWOULDBLOCK */
+			goto again;
+		}
+	return len;
 }
 
 ssize_t
