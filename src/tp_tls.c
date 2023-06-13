@@ -331,7 +331,7 @@ tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 		eatenlen = len;	/* strange specification... */
 		error = ptls_handshake(ptls, &encbuf, tp_buf(tp) + off, &eatenlen, NULL);
 		off += eatenlen;
-		if (error != 0 && error == PTLS_ERROR_IN_PROGRESS) {
+		if (error != 0 && error != PTLS_ERROR_IN_PROGRESS) {
 			fprintf(stderr, "handshake error: %d\n", error);
 			goto out;
 		}
