@@ -67,7 +67,7 @@ void *
 tp_buf(struct tp *tp)
 {
 
-	return tp_buf;
+	return tp->tp_buf;
 }
 
 static struct tp *
