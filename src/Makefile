@@ -5,7 +5,7 @@ PICOTLSLDADD=	-L$(PICOTLSDIR) -lpicotls-core -lpicotls-openssl\
 		-lpicotls-fusion	\
 		-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto
 #
-OPENSSLINCDIR=	 /usr/local/Cellar/openssl@1.1/1.1.1s/include/
+OPENSSLINCDIR=	 /usr/local/Cellar/openssl@1.1/1.1.1u/include/
 #		-lpicotls-minicrypto
 PICODIR=	../../picoquick/picoquic
 PICOLIBDIR=	../../picoquick
