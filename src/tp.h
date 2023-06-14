@@ -36,7 +36,7 @@ struct tp *tp_listen(const char *, const char *, const char *);
 
 struct tp *tp_accept(struct tp *);
 
-ssize_t tp_write(struct tp *, void *, size_t);
+ssize_t tp_write(struct tp *, const void *, size_t);
 ssize_t tp_send(struct tp *);
 ssize_t tp_recv(struct tp *);
 

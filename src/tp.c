@@ -264,7 +264,7 @@ tp_accept(struct tp *ltp)
 }
 
 ssize_t
-tp_write(struct tp *tp, void *data, size_t datalen)
+tp_write(struct tp *tp, const void *data, size_t datalen)
 {
 	ssize_t len;
 
