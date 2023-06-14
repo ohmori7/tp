@@ -311,6 +311,15 @@ tp_tls_ptls_context_free(ptls_context_t *ctx)
 	free(ctx);
 }
 
+static void
+tp_tls_buf_trim(ptls_buffer_t *buf, size_t len)
+{
+
+	assert(len <= buf->off);
+	buf->off -= len;
+	memmove(buf->base, buf->base + len, buf->off);
+}
+
 static int
 tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 {
@@ -341,6 +350,7 @@ tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 				fprintf(stderr, "write failed\n");
 				goto out;
 			}
+			tp_tls_buf_trim(&encbuf, len);
 		}
 		len = tp_recv(tp);
 		if (len == -1)
