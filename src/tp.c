@@ -15,7 +15,10 @@
 struct tp {
 	enum tp_proto tp_proto;
 	int tp_sock;
-	struct tp_count tp_recv, tp_sent;
+	void *tp_ctx;
+	ssize_t (*tp_recv)(struct tp *, int, void *, size_t, int);
+	ssize_t (*tp_send)(struct tp *, int, const void *, size_t, int);
+	struct tp_count tp_count_recv, tp_count_sent;
 	size_t tp_buflen;
 	uint8_t tp_buf[TP_MSS];
 };
@@ -70,6 +73,20 @@ tp_buf(struct tp *tp)
 	return tp->tp_buf;
 }
 
+static ssize_t
+_tp_recv(struct tp *tp, int sock, void *data, size_t datalen, int flags)
+{
+
+	return recv(sock, data, datalen, flags);
+}
+
+static ssize_t
+_tp_send(struct tp *tp, int sock, const void *data, size_t datalen, int flags)
+{
+
+	return send(sock, data, datalen, flags);
+}
+
 static struct tp *
 tp_init(enum tp_proto proto)
 {
@@ -80,8 +97,11 @@ tp_init(enum tp_proto proto)
 		return NULL;
 	tp->tp_proto = proto;
 	tp->tp_sock = -1;
-	tp_count_init(&tp->tp_recv, "recv");
-	tp_count_init(&tp->tp_sent, "sent");
+	tp->tp_ctx = NULL;
+	tp->tp_recv = _tp_recv;
+	tp->tp_send = _tp_send;
+	tp_count_init(&tp->tp_count_recv, "recv");
+	tp_count_init(&tp->tp_count_sent, "sent");
 	tp->tp_buflen = sizeof(tp->tp_buf);
 	return tp;
 }
@@ -93,6 +113,34 @@ tp_free(struct tp *tp)
 	if (tp->tp_sock != -1)
 		(void)close(tp->tp_sock);
 	free(tp);
+}
+
+void
+tp_set_context(struct tp *tp, void *ctx)
+{
+
+	tp->tp_ctx = ctx;
+}
+
+void *
+tp_get_context(struct tp *tp)
+{
+
+	return tp->tp_ctx;
+}
+
+void
+tp_set_recv(struct tp *tp, ssize_t (*cb)(struct tp *, int, void *, size_t, int))
+{
+
+	tp->tp_recv = cb;
+}
+
+void
+tp_set_send(struct tp *tp, ssize_t (*cb)(struct tp *, int, const void *, size_t, int))
+{
+
+	tp->tp_send = cb;
 }
 
 int
@@ -240,18 +288,18 @@ tp_send(struct tp *tp)
 	ssize_t len;
 
 	len = tp->tp_buflen;
-	if (tp->tp_sent.tpc_total_bytes + len > TP_DATASIZE)
-		len = TP_DATASIZE - tp->tp_sent.tpc_total_bytes;
+	if (tp->tp_count_sent.tpc_total_bytes + len > TP_DATASIZE)
+		len = TP_DATASIZE - tp->tp_count_sent.tpc_total_bytes;
 
-	len = send(tp->tp_sock, tp->tp_buf, len, 0);
+	len = (*tp->tp_send)(tp, tp->tp_sock, tp->tp_buf, len, 0);
 	if (len == 0)
 		return (ssize_t)-1;
 
-	tp_count_inc(&tp->tp_sent, len);
+	tp_count_inc(&tp->tp_count_sent, len);
 
-	if (tp->tp_sent.tpc_total_bytes >= TP_DATASIZE) {
-		tp_count_finalize(&tp->tp_sent);
-		tp_count_final_stats(&tp->tp_sent);
+	if (tp->tp_count_sent.tpc_total_bytes >= TP_DATASIZE) {
+		tp_count_finalize(&tp->tp_count_sent);
+		tp_count_final_stats(&tp->tp_count_sent);
 		return (ssize_t)-1;	/* done */
 	}
 
@@ -274,15 +322,15 @@ tp_recv(struct tp *tp)
 {
 	ssize_t len;
 
-	len = recv(tp->tp_sock, tp->tp_buf, tp->tp_buflen, 0);
+	len = (*tp->tp_recv)(tp, tp->tp_sock, tp->tp_buf, tp->tp_buflen, 0);
 	if (len == 0) {
 		fprintf(stderr, "connection closed\n");
-		tp_count_finalize(&tp->tp_recv);
-		tp_count_final_stats(&tp->tp_recv);
+		tp_count_finalize(&tp->tp_count_recv);
+		tp_count_final_stats(&tp->tp_count_recv);
 		return (ssize_t)-1;
 	}
 
-	tp_count_inc(&tp->tp_recv, len);
+	tp_count_inc(&tp->tp_count_recv, len);
 
 	if (len == (ssize_t)-1)
 		switch (errno) {

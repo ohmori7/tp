@@ -21,6 +21,10 @@ int tp_proto_aton(const char *);
 
 void *tp_buf(struct tp *);
 
+void tp_set_context(struct tp *, void *);
+void *tp_get_context(struct tp *);
+void tp_set_recv(struct tp *, ssize_t (*)(struct tp *, int, void *, size_t, int));
+void tp_set_send(struct tp *, ssize_t (*)(struct tp *, int, const void *, size_t, int));
 void tp_free(struct tp *);
 
 struct addrinfo; /* XXX: in netdb.h though.. */
