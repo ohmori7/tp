@@ -393,12 +393,9 @@ static int
 tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 {
 	ptls_t *ptls;
-	ptls_buffer_t encbuf;
 	off_t off;
 	size_t leftlen;
 	int error;
-
-	ptls_buffer_init(&encbuf, "", 0);
 
 	ptls = ptls_server_new(ctx);
 	if (ptls == NULL) {
@@ -418,7 +415,6 @@ tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 		;
 
   out:
-	ptls_buffer_dispose(&encbuf);
 	ptls_free(ptls);
 
 	return error;
@@ -480,7 +476,6 @@ tp_tls_client(const char *dststr, const char *servstr,
 	struct tp *tp;
 	ptls_context_t *ctx;
 	ptls_t *ptls;
-	ptls_buffer_t encbuf;
 	off_t off;
 	size_t leftlen;
 	int error;
@@ -495,8 +490,6 @@ tp_tls_client(const char *dststr, const char *servstr,
 	ctx = tp_tls_ptls_context_alloc(NULL, NULL);
 	if (ctx == NULL)
 		errx(EX_SOFTWARE, "cannot allocate picotls context");
-
-	ptls_buffer_init(&encbuf, "", 0);
 
 	ptls = ptls_client_new(ctx);
 	if (ptls == NULL) {
@@ -518,7 +511,6 @@ tp_tls_client(const char *dststr, const char *servstr,
 
   out:
 	tp_tls_ptls_context_free(ctx);
-	ptls_buffer_dispose(&encbuf);
 
 	return error;
 }
