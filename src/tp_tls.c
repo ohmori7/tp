@@ -399,6 +399,39 @@ tp_tls_recv(struct tp *tp, ptls_t *ptls, off_t off, size_t leftlen)
 	return error;
 }
 
+static ssize_t
+tp_tls_send(struct tp *tp, int sock, const void *data, size_t datalen, int flags)
+{
+	ptls_t *ptls;
+	ptls_buffer_t encbuf;
+	ssize_t len;
+	size_t leftlen;
+	int error;
+
+	ptls_buffer_init(&encbuf, "", 0);
+
+	ptls = tp_get_context(tp);
+	error = ptls_send(ptls, &encbuf, data, datalen);
+	if (error != 0) {
+		fprintf(stderr, "ptls_send failed: %d\n", error);
+		goto out;
+	}
+
+	leftlen = datalen;
+	do {
+		len = tp_write(tp, encbuf.base, encbuf.off);
+		if (len == (ssize_t)-1) {
+			datalen = len;
+			break;
+		}
+		data += len;
+	} while ((leftlen -= len) != 0);
+  out:
+	ptls_buffer_dispose(&encbuf);
+
+	return datalen;
+}
+
 static int
 tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 {
@@ -413,6 +446,9 @@ tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 		return -1;
 	}
 	ptls_set_server_name(ptls, TP_TLS_DEFAULT_SNI, 0);
+
+	tp_set_context(tp, ptls);
+	tp_set_send(tp, tp_tls_send);
 
 	/* clear openssl error. */
 	ERR_clear_error();
