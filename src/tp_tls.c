@@ -247,6 +247,66 @@ tp_tls_private_key_unset(ptls_context_t *ctx)
 	tp_tls_signer_unset(ctx);
 }
 
+static int
+tp_tls_certificate_verifier_set(ptls_context_t *ctx, const char *root)
+{
+	ptls_openssl_verify_certificate_t *verifier;
+	X509_STORE *store;
+	X509_LOOKUP *lookup;
+	int error;
+
+	verifier = malloc(sizeof(*verifier));
+	if (verifier == NULL)
+		return -1;
+	store = X509_STORE_new();
+	if (store == NULL)
+		goto bad;
+
+	if (root != NULL) {
+		lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
+		error = X509_LOOKUP_load_file(lookup, root, X509_FILETYPE_PEM);
+		if (error != 1) {
+			fprintf(stderr, "cannot load load X509 store: %s: %d\n",
+			    root, error);
+			goto bad;
+		}
+	}
+
+#ifdef PTLS_OPENSSL_VERIFY_CERTIFICATE_ENABLE_OVERRIDE
+	ptls_openssl_init_verify_certificate(verifier, store, NULL);
+#else
+	ptls_openssl_init_verify_certificate(verifier, store);
+#endif
+
+#if OPENSSL_VERSION_NUMBER > 0x10100000L
+	X509_STORE_free(store);
+#endif /* OPENSSL_VERSION_NUMBER > 0x10100000L */
+
+	ctx->verify_certificate = &verifier->super;
+
+	return 0;
+  bad:
+	if (verifier != NULL)
+		free(verifier);
+	if (store != NULL)
+		X509_STORE_free(store);
+	return -1;
+}
+
+static void
+tp_tls_certificate_verifier_unset(ptls_context_t *ctx)
+{
+	ptls_verify_certificate_t *verifier;
+
+	verifier = ctx->verify_certificate;
+	if (verifier == NULL)
+		return;
+	/* XXX: do not need to free store??? */
+	ptls_openssl_dispose_verify_certificate((ptls_openssl_verify_certificate_t*)verifier);
+	free(verifier);
+	ctx->verify_certificate = NULL;
+}
+
 static ptls_context_t *
 tp_tls_ptls_context_alloc(const char *cert, const char *key)
 {
@@ -287,7 +347,14 @@ tp_tls_ptls_context_alloc(const char *cert, const char *key)
 	 * because we do not care ALPN.
 	 */
 	/* no session ticket here for TCP. */
-	/* we here do not verify certificate. */
+
+	/*
+	 * currently, we do not verify certificate, but it
+	 * does not work without this because picotls server
+	 * move to handshake finish state immediately if no
+	 * verifier is set and client seems not to support it.
+	 */
+	tp_tls_certificate_verifier_set(ctx, NULL);
 
 	ctx->omit_end_of_early_data = 1;
 
@@ -308,6 +375,7 @@ tp_tls_ptls_context_free(ptls_context_t *ctx)
 		return;
 	tp_tls_cipher_suite_unset(ctx);
 	tp_tls_private_key_unset(ctx);
+	tp_tls_certificate_verifier_unset(ctx);
 	free(ctx);
 }
 
