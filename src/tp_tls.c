@@ -336,10 +336,14 @@ tp_tls_ptls_context_alloc(const char *cert, const char *key, const char *root)
 
 	if (cert != NULL) {
 		assert(key != NULL);
-		if (ptls_load_certificates(ctx, cert) != 0)
+		if (ptls_load_certificates(ctx, cert) != 0) {
+			fprintf(stderr, "cannot load certificate: %s\n", cert);
 			goto bad;
-		if (tp_tls_private_key_set(ctx, key) != 0)
+		}
+		if (tp_tls_private_key_set(ctx, key) != 0) {
+			fprintf(stderr, "cannot load key: %s\n", key);
 			goto bad;
+		}
 	}
 
 	/*
