@@ -1,3 +1,5 @@
+#define PTLS_WITHOUT_FUSION
+
 #include <assert.h>
 #include <err.h>
 #include <sysexits.h>
@@ -354,7 +356,7 @@ tp_tls_ptls_context_alloc(const char *cert, const char *key, const char *root)
 
 	/*
 	 * currently, our server do not necessarily verify certificate,
-	 * but it does not work without this because picotls server move
+	 * but it does not work without this because picotls server transit
 	 * to handshake finish state immediately if no verifier is set
 	 * and the client seems not to support it.
 	 */
