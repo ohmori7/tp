@@ -308,7 +308,7 @@ tp_tls_certificate_verifier_unset(ptls_context_t *ctx)
 }
 
 static ptls_context_t *
-tp_tls_ptls_context_alloc(const char *cert, const char *key)
+tp_tls_ptls_context_alloc(const char *cert, const char *key, const char *root)
 {
 	ptls_context_t *ctx;
 	int keyexid = 0;
@@ -349,12 +349,15 @@ tp_tls_ptls_context_alloc(const char *cert, const char *key)
 	/* no session ticket here for TCP. */
 
 	/*
-	 * currently, we do not verify certificate, but it
-	 * does not work without this because picotls server
-	 * move to handshake finish state immediately if no
-	 * verifier is set and client seems not to support it.
+	 * currently, our server do not necessarily verify certificate,
+	 * but it does not work without this because picotls server move
+	 * to handshake finish state immediately if no verifier is set
+	 * and the client seems not to support it.
 	 */
-	tp_tls_certificate_verifier_set(ctx, NULL);
+	if (tp_tls_certificate_verifier_set(ctx, root) == -1) {
+		fprintf(stderr, "cannot set certificate verifier\n");
+		goto bad;
+	}
 
 	ctx->omit_end_of_early_data = 1;
 
@@ -561,7 +564,7 @@ tp_tls_server(const char *dststr, const char *servstr,
 		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/
 
-	ctx = tp_tls_ptls_context_alloc(cert, key);
+	ctx = tp_tls_ptls_context_alloc(cert, key, NULL);
 	if (ctx == NULL)
 		errx(EX_SOFTWARE, "cannot allocate picotls context");
 
@@ -587,12 +590,23 @@ tp_tls_client(const char *dststr, const char *servstr,
     int argc, char * const argv[])
 {
 	const char *protostr = "tls";
+	const char *cert;
 	struct tp *tp;
 	ptls_context_t *ctx;
 	ptls_t *ptls;
 	off_t off;
 	size_t leftlen;
 	int error;
+
+	if (argc < 1)
+		errx(EX_USAGE, "missing server certificate file for TLS");
+	cert = argv[0];
+	argc -= 1;
+	argv += 1;
+
+	if (argc != 0)
+		errx(EX_USAGE, "extra argument(s)");
+
 
 	fprintf(stderr, "connect to %s.%s using %s\n", dststr, servstr, protostr);
 
@@ -601,7 +615,7 @@ tp_tls_client(const char *dststr, const char *servstr,
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/
 
-	ctx = tp_tls_ptls_context_alloc(NULL, NULL);
+	ctx = tp_tls_ptls_context_alloc(NULL, NULL, cert);
 	if (ctx == NULL)
 		errx(EX_SOFTWARE, "cannot allocate picotls context");
 
