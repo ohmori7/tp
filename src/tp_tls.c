@@ -416,30 +416,42 @@ tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 	off = 0;
 	len = eatenlen = 0;
 	error = 0;
-	while (! ptls_handshake_is_complete(ptls)) {
+	for (;;) {
 		eatenlen = len;	/* strange specification... */
 		error = ptls_handshake(ptls, &encbuf, tp_buf(tp) + off, &eatenlen, NULL);
 		off += eatenlen;
+		len -= eatenlen;
+		if (len == 0)
+			off = 0;
 		if (error != 0 && error != PTLS_ERROR_IN_PROGRESS) {
 			fprintf(stderr, "handshake error: %d\n", error);
 			goto out;
 		}
-		if (encbuf.off != 0) {
-			len = tp_write(tp, encbuf.base, encbuf.off);
-			if (len == (ssize_t)-1 || len == 0) {
+		/* XXX: this may be insufficient... */
+		while (encbuf.off != 0) {
+			ssize_t wlen;
+
+			wlen = tp_write(tp, encbuf.base, encbuf.off);
+			if (wlen == (ssize_t)-1 || wlen == 0) {
 				fprintf(stderr, "write failed\n");
 				goto out;
 			}
-			tp_tls_buf_trim(&encbuf, len);
+			tp_tls_buf_trim(&encbuf, wlen);
 		}
+		if (ptls_handshake_is_complete(ptls))
+			break;
+
+		/* XXX: may be infinite loop in some cases. */
+		if (len > 0)
+			continue;
+
 		len = tp_recv(tp);
 		if (len == -1)
 			goto out;
-		off = 0;
 	}
 	fprintf(stderr, "TLS handshake finish\n");
 	*offp = off;
-	*leftlenp = len - off;
+	*leftlenp = len;
   out:
 	ptls_buffer_dispose(&encbuf);
 	return error;
