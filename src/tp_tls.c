@@ -405,8 +405,9 @@ tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 {
 	ptls_buffer_t encbuf;
 	off_t off;
-	ssize_t len;
+	size_t len;
 	size_t eatenlen;
+	ssize_t nlen;
 	int error;
 
 	fprintf(stderr, "TLS handshake start\n");
@@ -441,13 +442,10 @@ tp_tls_handshake(struct tp *tp, ptls_t *ptls, off_t *offp, size_t *leftlenp)
 		if (ptls_handshake_is_complete(ptls))
 			break;
 
-		/* XXX: may be infinite loop in some cases. */
-		if (len > 0)
-			continue;
-
-		len = tp_recv(tp);
-		if (len == -1)
+		nlen = tp_recv(tp, off + len);
+		if (nlen == (ssize_t)-1)
 			goto out;
+		len += nlen;
 	}
 	fprintf(stderr, "TLS handshake finish\n");
 	*offp = off;
@@ -462,24 +460,25 @@ tp_tls_recv(struct tp *tp, ptls_t *ptls, off_t off, size_t leftlen)
 {
 	ptls_buffer_t rbuf;
 	ssize_t len;
+	size_t consumedlen;
 	int error;
 
 	ptls_buffer_init(&rbuf, "", 0);
 
 	error = 0;
 	for (;;) {
-		error = ptls_receive(ptls, &rbuf, tp_buf(tp) + off, &leftlen);
+		consumedlen = leftlen;
+		error = ptls_receive(ptls, &rbuf, tp_buf(tp) + off, &consumedlen);
 		switch (error) {
 		case 0:
-			/* XXX: we drain data... */
-			rbuf.off = 0;
-			/*FALLTHROUGH*/
-		case PTLS_ERROR_IN_PROGRESS:
-			len = tp_recv(tp);
+			off += consumedlen;
+			leftlen -= consumedlen;
+			if (leftlen == 0)
+				off = 0;
+			len = tp_recv(tp, off);
 			if (len == (ssize_t)-1)
 				goto out;
-			off = 0; /* XXX: no data left..??? */
-			leftlen = len;
+			rbuf.off = 0;
 			break;
 		default:
 			fprintf(stderr, "ptls_receive failed: %d\n", error);
@@ -498,6 +497,7 @@ tp_tls_send(struct tp *tp, int sock, const void *data, size_t datalen, int flags
 	ptls_buffer_t encbuf;
 	ssize_t len;
 	size_t leftlen;
+	off_t off;
 	int error;
 
 	ptls_buffer_init(&encbuf, "", 0);
@@ -509,14 +509,15 @@ tp_tls_send(struct tp *tp, int sock, const void *data, size_t datalen, int flags
 		goto out;
 	}
 
-	leftlen = datalen;
+	off = 0;
+	leftlen = encbuf.off;
 	do {
-		len = tp_write(tp, encbuf.base, encbuf.off);
+		len = tp_write(tp, encbuf.base + off, leftlen);
 		if (len == (ssize_t)-1) {
 			datalen = len;
 			break;
 		}
-		data += len;
+		off += len;
 	} while ((leftlen -= len) != 0);
   out:
 	ptls_buffer_dispose(&encbuf);
