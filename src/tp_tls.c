@@ -613,7 +613,6 @@ tp_tls_client(const char *dststr, const char *servstr,
 	if (argc != 0)
 		errx(EX_USAGE, "extra argument(s)");
 
-
 	fprintf(stderr, "connect to %s.%s using %s\n", dststr, servstr, protostr);
 
 	tp = tp_connect(protostr, dststr, servstr);
