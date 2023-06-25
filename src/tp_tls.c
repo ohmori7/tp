@@ -260,11 +260,12 @@ tp_tls_certificate_verifier_set(ptls_context_t *ctx, const char *root)
 	verifier = malloc(sizeof(*verifier));
 	if (verifier == NULL)
 		return -1;
-	store = X509_STORE_new();
-	if (store == NULL)
-		goto bad;
-
-	if (root != NULL) {
+	if (root == NULL)
+		store = NULL;
+	else {
+		store = X509_STORE_new();
+		if (store == NULL)
+			goto bad;
 		lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
 		error = X509_LOOKUP_load_file(lookup, root, X509_FILETYPE_PEM);
 		if (error != 1) {
@@ -281,7 +282,8 @@ tp_tls_certificate_verifier_set(ptls_context_t *ctx, const char *root)
 #endif
 
 #if OPENSSL_VERSION_NUMBER > 0x10100000L
-	X509_STORE_free(store);
+	if (store != NULL)
+		X509_STORE_free(store);
 #endif /* OPENSSL_VERSION_NUMBER > 0x10100000L */
 
 	ctx->verify_certificate = &verifier->super;
