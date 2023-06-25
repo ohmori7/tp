@@ -196,6 +196,7 @@ tp_tls_signer_set(ptls_context_t *ctx, EVP_PKEY *pkey)
 	if (signer == NULL)
 		return -1;
 	error = ptls_openssl_init_sign_certificate(signer, pkey);
+	if (error != 0)
 		goto bad;
         ctx->sign_certificate = &signer->super;
 
