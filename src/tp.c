@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <sysexits.h>
@@ -318,11 +319,13 @@ tp_send(struct tp *tp)
 }
 
 ssize_t
-tp_recv(struct tp *tp)
+tp_recv(struct tp *tp, off_t off)
 {
 	ssize_t len;
 
-	len = (*tp->tp_recv)(tp, tp->tp_sock, tp->tp_buf, tp->tp_buflen, 0);
+	assert(tp->tp_buflen >= off);
+	len = (*tp->tp_recv)(tp, tp->tp_sock, tp->tp_buf + off,
+	    tp->tp_buflen - off, 0);
 	if (len == 0) {
 		fprintf(stderr, "connection closed\n");
 		tp_count_finalize(&tp->tp_count_recv);

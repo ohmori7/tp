@@ -19,7 +19,7 @@ tp_tcp_client(const char *dststr, const char *srvstr,
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/
 
-	while (tp_recv(tp) != (ssize_t)-1)
+	while (tp_recv(tp, 0) != (ssize_t)-1)
 		;
 
 	return 0;
