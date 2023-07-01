@@ -12,6 +12,7 @@
 #include "tp.h"
 #include "tp_count.h"
 #include "tp_handle.h"
+#include "tp_socket.h"
 #include "tp_picoquic.h"
 
 #define TP_PICOQUIC_ALPN		"tp_picoquic"
@@ -409,8 +410,9 @@ tp_picoquic_server(const char *dststr, const char *servstr,
 #endif /* notyet */
 
 	port = atoi(servstr);
-	error = picoquic_packet_loop(quic, port, 0, 0, 0, do_not_use_gso,
-	    NULL, NULL);
+	error = picoquic_packet_loop(quic, port, 0, 0,
+	    tp_socket_buffer_recv_size(), /* XXX: ineffective for sending */
+	    do_not_use_gso, NULL, NULL);
 
 	picoquic_free(quic);
 

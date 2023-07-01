@@ -17,8 +17,8 @@ CPPFLAGS=	-I$(PICODIR) -I$(PICOTLSINCDIR) -I$(OPENSSLINCDIR)
 CFLAGS=	-Wall -O2 -Werror -g
 LDFLAGS=	$(PICOLDADD)
 SRCDIR=	../src
-SRCS=	tp.c tp_clock.c tp_count.c tp_handle.c tp_main.c tp_tcp.c
-SRCS+=	tp_tls.c tp_picoquic.c
+SRCS=	tp.c tp_clock.c tp_count.c tp_socket.c tp_handle.c tp_main.c
+SRCS+=	tp_tcp.c tp_tls.c tp_picoquic.c
 
 #
 #LIBX=	lib$(LIB).a
