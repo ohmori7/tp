@@ -13,6 +13,7 @@
 #include "tp_tcp.h"
 #include "tp_tls.h"
 #include "tp_picoquic.h"
+#include "tp_msquic.h"
 
 #define	TP_DEFAULT_PROTO	"tcp"
 #define	TP_DEFAULT_ADDR		"127.0.0.1"
@@ -134,6 +135,7 @@ main(int argc, char * const argv[])
 	tp_tcp_init();
 	tp_tls_init();
 	tp_picoquic_init();
+	tp_msquic_init();
 
 	th = tp_handle_lookup_by_name(protostr);
 	if (th == NULL)

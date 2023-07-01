@@ -11,20 +11,31 @@ PICODIR=	../../picoquick/picoquic
 PICOLIBDIR=	../../picoquick
 PICOLDADD=	-L$(PICOLIBDIR) -lpicoquic-core $(PICOTLSLDADD)
 #
+MSQUICDIR=	../../msquic
+MSQUICINCDIR=	$(MSQUICDIR)/src/inc
+MSQUICLIBDIR=	$(MSQUICDIR)/build/obj/Release
+MSQUICLDADD=	-L$(MSQUICLIBDIR) -lmsquic -lcore -lplatform
+
 PROG=	tp
 LIB=	tp
 CPPFLAGS=	-I$(PICODIR) -I$(PICOTLSINCDIR) -I$(OPENSSLINCDIR)
+CPPFLAGS+=	-I$(MSQUICINCDIR)
 CFLAGS=	-Wall -O2 -Werror -g
 LDFLAGS=	$(PICOLDADD)
+LDFLAGS+=	$(MSQUICLDADD)
 SRCDIR=	../src
 SRCS=	tp.c tp_clock.c tp_count.c tp_socket.c tp_handle.c tp_main.c
 SRCS+=	tp_tcp.c tp_tls.c tp_picoquic.c
+SRCS+=	tp_msquic.c
 
 #
 #LIBX=	lib$(LIB).a
 OBJS=	$(SRCS:%.c=%.o)
 
 all:	$(PROG)
+
+tp_msquic.o:	tp_msquic.c
+	$(CC) -c $(CPPFLAGS) -Wall $<
 
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
