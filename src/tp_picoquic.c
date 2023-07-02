@@ -35,40 +35,40 @@ struct tp_picoquic_ctx {
 };
 
 struct tp_picoquic_stream_ctx {
-	uint64_t tpsctx_id;
-	struct tp_count tpsctx_count;
-	size_t tpsctx_total;
-	size_t tpsctx_bytes;
+	uint64_t tpsc_id;
+	struct tp_count tpsc_count;
+	size_t tpsc_total;
+	size_t tpsc_bytes;
 };
 
 static struct tp_picoquic_stream_ctx *
 tp_picoquic_stream_ctx_new(uint64_t id)
 {
-	struct tp_picoquic_stream_ctx *tpsctx;
+	struct tp_picoquic_stream_ctx *tpsc;
 
-	tpsctx = malloc(sizeof(*tpsctx));
-	if (tpsctx == NULL)
+	tpsc = malloc(sizeof(*tpsc));
+	if (tpsc == NULL)
 		return NULL;
-	tpsctx->tpsctx_id = id;
-	tpsctx->tpsctx_total = 0;
-	tpsctx->tpsctx_bytes = 0;
-	tp_count_init(&tpsctx->tpsctx_count, "picoquic");
+	tpsc->tpsc_id = id;
+	tpsc->tpsc_total = 0;
+	tpsc->tpsc_bytes = 0;
+	tp_count_init(&tpsc->tpsc_count, "picoquic");
 #ifdef DEBUG
-	fprintf(stderr, "stream ctx %p: create\n", tpsctx);
+	fprintf(stderr, "stream ctx %p: create\n", tpsc);
 #endif /* DEBUG */
 
-	return tpsctx;
+	return tpsc;
 }
 
 static void
-tp_picoquic_stream_ctx_destroy(struct tp_picoquic_stream_ctx *tpsctx)
+tp_picoquic_stream_ctx_destroy(struct tp_picoquic_stream_ctx *tpsc)
 {
 
-	if (tpsctx == NULL)
+	if (tpsc == NULL)
 		return;
-	free(tpsctx);
+	free(tpsc);
 #ifdef DEBUG
-	fprintf(stderr, "stream ctx %p: free\n", tpsctx);
+	fprintf(stderr, "stream ctx %p: free\n", tpsc);
 #endif /* DEBUG */
 }
 
@@ -118,7 +118,7 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
     void *cb_ctx, void *stream_ctx)
 {
 	struct tp_picoquic_ctx *tpctx = cb_ctx;
-	struct tp_picoquic_stream_ctx *tpsctx = stream_ctx;
+	struct tp_picoquic_stream_ctx *tpsc = stream_ctx;
 	int error = 0;
 
 #ifdef DEBUG
@@ -129,26 +129,26 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 	switch (event) {
 	case picoquic_callback_stream_data:
 	case picoquic_callback_stream_fin:
-		if (tpsctx == NULL) {
+		if (tpsc == NULL) {
 			assert(tpctx != NULL);
-			tpsctx = tp_picoquic_stream_ctx_new(stream_id);
-			if (tpsctx == NULL ||
-			    picoquic_set_app_stream_ctx(cnx, stream_id, tpsctx) != 0) {
-				tp_picoquic_stream_ctx_destroy(tpsctx);
+			tpsc = tp_picoquic_stream_ctx_new(stream_id);
+			if (tpsc == NULL ||
+			    picoquic_set_app_stream_ctx(cnx, stream_id, tpsc) != 0) {
+				tp_picoquic_stream_ctx_destroy(tpsc);
 				(void)picoquic_reset_stream(cnx, stream_id, 0x0U);
 				break;
 			}
 			fprintf(stderr, "open stream\n");
 		} else {
-			assert(tpsctx != NULL);
-			tp_count_inc(&tpsctx->tpsctx_count, len);
+			assert(tpsc != NULL);
+			tp_count_inc(&tpsc->tpsc_count, len);
 		}
 		if (event == picoquic_callback_stream_fin) {
 			fprintf(stderr, "fin\n");
-			assert(tpsctx != NULL);
-			tp_count_finalize(&tpsctx->tpsctx_count);
-			tp_count_final_stats(&tpsctx->tpsctx_count);
-			tp_picoquic_stream_ctx_destroy(tpsctx);
+			assert(tpsc != NULL);
+			tp_count_finalize(&tpsc->tpsc_count);
+			tp_count_final_stats(&tpsc->tpsc_count);
+			tp_picoquic_stream_ctx_destroy(tpsc);
 			tpctx->tpctx_status = tp_picoquic_status_done;
 			error = picoquic_close(cnx, 0);
 		}
@@ -165,7 +165,7 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 	case picoquic_callback_close:
 	case picoquic_callback_application_close:
 		picoquic_set_callback(cnx, NULL, NULL);
-		tp_picoquic_stream_ctx_destroy(tpsctx);
+		tp_picoquic_stream_ctx_destroy(tpsc);
 		fprintf(stderr, "connection closed\n");
 		break;
 	case picoquic_callback_version_negotiation:
@@ -270,18 +270,18 @@ tp_picoquic_client(const char *dststr, const char *servstr,
 }
 
 static void
-tp_picoquic_server_send(struct tp_picoquic_stream_ctx *tpsctx, uint8_t *bytes, size_t len)
+tp_picoquic_server_send(struct tp_picoquic_stream_ctx *tpsc, uint8_t *bytes, size_t len)
 {
 	size_t left;
 	uint8_t *buf;
 	int is_fin, is_still_active;
 
-	assert(tpsctx->tpsctx_total > tpsctx->tpsctx_bytes);
-	left = tpsctx->tpsctx_total - tpsctx->tpsctx_bytes;
+	assert(tpsc->tpsc_total > tpsc->tpsc_bytes);
+	left = tpsc->tpsc_total - tpsc->tpsc_bytes;
 	if (left < len)
 		len = left;
-	tpsctx->tpsctx_bytes += len;
-	is_fin = (tpsctx->tpsctx_total == tpsctx->tpsctx_bytes);
+	tpsc->tpsc_bytes += len;
+	is_fin = (tpsc->tpsc_total == tpsc->tpsc_bytes);
 	is_still_active = ! is_fin;
 
 	buf = picoquic_provide_stream_data_buffer(bytes, len,
@@ -298,7 +298,7 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
     uint8_t *bytes, size_t len, picoquic_call_back_event_t event,
     void *cb_ctx, void *stream_ctx)
 {
-	struct tp_picoquic_stream_ctx *tpsctx = stream_ctx;
+	struct tp_picoquic_stream_ctx *tpsc = stream_ctx;
 	int error = 0;
 
 #ifdef DEBUG
@@ -314,23 +314,23 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 		break;
 	case picoquic_callback_prepare_to_send:
 		assert(bytes != NULL);
-		tp_picoquic_server_send(tpsctx, bytes, len);
-		if (tpsctx->tpsctx_total == tpsctx->tpsctx_bytes) {
-			tp_picoquic_stream_ctx_destroy(tpsctx);
+		tp_picoquic_server_send(tpsc, bytes, len);
+		if (tpsc->tpsc_total == tpsc->tpsc_bytes) {
+			tp_picoquic_stream_ctx_destroy(tpsc);
 			error = picoquic_close(cnx, 0);
 		}
 		break;
 	case picoquic_callback_stream_reset:
 	case picoquic_callback_stop_sending:
 		picoquic_reset_stream(cnx, stream_id, 0x1U);
-		tp_picoquic_stream_ctx_destroy(tpsctx);
+		tp_picoquic_stream_ctx_destroy(tpsc);
 		/* XXX: should set callback??? */
 		break;
 	case picoquic_callback_stateless_reset:
 	case picoquic_callback_close:
 	case picoquic_callback_application_close:
 		picoquic_set_callback(cnx, NULL, NULL);
-		tp_picoquic_stream_ctx_destroy(tpsctx);
+		tp_picoquic_stream_ctx_destroy(tpsc);
 		picoquic_close(cnx, 0);
 		fprintf(stderr, "connection closed\n");
 		break;
@@ -342,16 +342,16 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 	case picoquic_callback_almost_ready:
 		break;
 	case picoquic_callback_ready:
-		assert(tpsctx == NULL);
-		tpsctx = tp_picoquic_stream_ctx_new(TP_PICOQUIC_STREAM_ID);
-		if (tpsctx == NULL) {
+		assert(tpsc == NULL);
+		tpsc = tp_picoquic_stream_ctx_new(TP_PICOQUIC_STREAM_ID);
+		if (tpsc == NULL) {
 			(void)picoquic_close(cnx, 0);
 			break;
 		}
-		tpsctx->tpsctx_total = TP_DATASIZE;
-		error = picoquic_mark_active_stream(cnx, tpsctx->tpsctx_id, 1, tpsctx);
+		tpsc->tpsc_total = TP_DATASIZE;
+		error = picoquic_mark_active_stream(cnx, tpsc->tpsc_id, 1, tpsc);
 		if (error != 0) {
-			tp_picoquic_stream_ctx_destroy(tpsctx);
+			tp_picoquic_stream_ctx_destroy(tpsc);
 			fprintf(stderr, "cannot open stream\n");
 			break;
 		}
