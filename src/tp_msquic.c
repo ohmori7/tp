@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if 0
+#define DEBUG /* DPRINTF() */
+#endif /* 0 */
+#include "tp.h"
+#include "tp_count.h"
 #include "tp_handle.h"
 
 #include "msquic.h"
@@ -17,29 +22,126 @@ HQUIC Registration;
 const QUIC_BUFFER Alpn = { sizeof("tp_msquic") - 1, (uint8_t *)"tp_msquic" };
 HQUIC Configuration;
 
-static QUIC_STATUS
-tp_msquic_stream_send(HQUIC s, void *ctx)
+#define TP_MSQUIC_MSS	(TP_MSS - 54)
+
+#if 1
+#define TP_MSQUIC_DEFAULT_CC_ALG	QUIC_CONGESTION_CONTROL_ALGORITHM_CUBIC
+#else
+#define TP_MSQUIC_DEFAULT_CC_ALG	QUIC_CONGESTION_CONTROL_ALGORITHM_BBR
+#endif
+
+struct tp_msquic_stream_context {
+	struct tp_count tmsc_recv_count;
+	struct tp_count tmsc_sent_count;
+	size_t tmsc_total;
+	size_t tmsc_bytes;
+	QUIC_BUFFER tmsc_qbuf;
+	uint8_t tmsc_buf[1];
+};
+
+static struct tp_msquic_stream_context *
+tp_msquic_stream_context_new(void)
+{
+	struct tp_msquic_stream_context *tmsc;
+	size_t size;
+
+	size = offsetof(struct tp_msquic_stream_context, tmsc_buf[TP_MSQUIC_MSS]);
+	tmsc = malloc(size);
+	if (tmsc == NULL)
+		return NULL;
+	tmsc->tmsc_total = 0;
+	tmsc->tmsc_bytes = 0;
+	tp_count_init(&tmsc->tmsc_recv_count, "msquic recv");
+	tp_count_init(&tmsc->tmsc_sent_count, "msquic sent");
+	DPRINTF("stream ctx %p: create %zu bytes", tmsc, size);
+	return tmsc;
+}
+
+static void
+tp_msquic_stream_context_destroy(struct tp_msquic_stream_context *tmsc)
 {
 
+	if (tmsc == NULL)
+		return;
+	free(tmsc);
+	DPRINTF("stream ctx %p: free", tmsc);
+}
+
+static QUIC_STATUS
+tp_msquic_stream_send(HQUIC s, struct tp_msquic_stream_context *tmsc)
+{
+	size_t len;
+	QUIC_STATUS Status;
+	QUIC_BUFFER *buf;
+	uint16_t flags = 0;
+
+	assert(tmsc != NULL);
+	assert(tmsc->tmsc_total > tmsc->tmsc_bytes);
+	len = tmsc->tmsc_total - tmsc->tmsc_bytes;
+	if (len > TP_MSQUIC_MSS)
+		len = TP_MSQUIC_MSS;
+	else
+		flags |= QUIC_SEND_FLAG_FIN;
+
+	buf = &tmsc->tmsc_qbuf;
+	buf->Length = len;
+	buf->Buffer = tmsc->tmsc_buf;
+
+	Status = MsQuic->StreamSend(s, buf, 1, flags, tmsc);
+	if (QUIC_FAILED(Status)) {
+		/* may fail when socket sending buffer is already full. */
+		tp_count_inc(&tmsc->tmsc_sent_count, (ssize_t)-1);
+		warn("stream %p: StreamSend failed: 0x%x\n", s, Status);
+		goto bad;
+	}
+	tmsc->tmsc_bytes += len;
+	tp_count_inc(&tmsc->tmsc_sent_count, len);
+	DPRINTF("stream %p: send %zu bytes, left %zu bytes",
+	    s, len, tmsc->tmsc_total - tmsc->tmsc_bytes);
+  bad:
+	return Status;
+}
+
+static QUIC_STATUS
+tp_msquic_stream_receive(HQUIC s, struct tp_msquic_stream_context *tmsc,
+    const QUIC_BUFFER *bufs, unsigned int bufcount)
+{
+	unsigned int i;
+
+	for (i = 0; i < bufcount; i++) {
+		/* XXX: should free memory... */
+		tp_count_inc(&tmsc->tmsc_recv_count, bufs[i].Length);
+	}
 	return QUIC_STATUS_SUCCESS;
 }
 
 static QUIC_STATUS
 tp_msquic_stream_callback(HQUIC s, void *ctx, QUIC_STREAM_EVENT *ev)
 {
+	struct tp_msquic_stream_context *tmsc = ctx;
 
-	fprintf(stderr, "stream %p: event 0x%x\n", s, ev->Type);
+	DPRINTF("stream %p: context %p, event 0x%x", s, ctx, ev->Type);
 
 	switch (ev->Type) {
 	case QUIC_STREAM_EVENT_START_COMPLETE:
-		fprintf(stderr, "stream %p: start complete\n", s);
-		return tp_msquic_stream_send(s, ctx);
+		DPRINTF("stream %p: start complete", s);
+		return tp_msquic_stream_send(s, tmsc);
 	case QUIC_STREAM_EVENT_SEND_COMPLETE:
-		fprintf(stderr, "stream %p: send complete\n", s);
-		return tp_msquic_stream_send(s, ctx);
-	case QUIC_STREAM_EVENT_RECEIVE:
-		fprintf(stderr, "stream %p: receive\n", s);
+		assert(ev->SEND_COMPLETE.ClientContext == tmsc);
+		DPRINTF("stream %p: send complete", s);
+		if (tmsc->tmsc_bytes < tmsc->tmsc_total)
+			return tp_msquic_stream_send(s, tmsc);
+		else
+			tp_count_final_stats(&tmsc->tmsc_sent_count);
+#if 0
+		/* XXX: will be closed automatically by FIN??? */
+		MsQuic->StreamClose(s);
+#endif /* 0 */
 		break;
+	case QUIC_STREAM_EVENT_RECEIVE:
+		DPRINTF("stream %p: receive %u", s, ev->RECEIVE.BufferCount);
+		return tp_msquic_stream_receive(s, tmsc,
+		    ev->RECEIVE.Buffers, ev->RECEIVE.BufferCount);
 	case QUIC_STREAM_EVENT_PEER_SEND_ABORTED:
 		fprintf(stderr, "stream %p: peer send abort\n", s);
 		break;
@@ -48,8 +150,11 @@ tp_msquic_stream_callback(HQUIC s, void *ctx, QUIC_STREAM_EVENT *ev)
 		break;
 	case QUIC_STREAM_EVENT_SHUTDOWN_COMPLETE:
 		fprintf(stderr, "stream %p: shutdown complete\n", s);
+		tp_msquic_stream_context_destroy(ctx);
 		if (! ev->SHUTDOWN_COMPLETE.AppCloseInProgress)
 			MsQuic->StreamClose(s);
+		tp_count_final_stats(&tmsc->tmsc_recv_count);
+		tp_count_final_stats(&tmsc->tmsc_sent_count);
 		break;
 	default:
 		break;
@@ -86,13 +191,22 @@ tp_msquic_connection_shutdown_complete(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT
 	/* XXX: in case of a server side, is it okay to always close??? */
 }
 
+/* XXX: only client can start stream in QUIC...??? */
 static QUIC_STATUS
-tp_msquic_connection_send_start(HQUIC c, void *ctx)
+tp_msquic_connection_start_stream(HQUIC c)
 {
+	struct tp_msquic_stream_context *tmsc;
 	QUIC_STATUS Status;
 	HQUIC s;
 
-	Status = MsQuic->StreamOpen(c, QUIC_STREAM_OPEN_FLAG_NONE, tp_msquic_stream_callback, ctx, &s);
+	tmsc = tp_msquic_stream_context_new();
+	if (tmsc == NULL) {
+		warn("cannot allocate stream context");
+		Status = QUIC_STATUS_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	Status = MsQuic->StreamOpen(c, QUIC_STREAM_OPEN_FLAG_NONE, tp_msquic_stream_callback, tmsc, &s);
 	if (QUIC_FAILED(Status)) {
 		warn("StreamOpen failed: 0x%x", Status);
 		goto out;
@@ -103,25 +217,48 @@ tp_msquic_connection_send_start(HQUIC c, void *ctx)
 		warn("StreamStart failed: 0x%x", Status);
 		goto out;
 	}
+	tmsc->tmsc_total = 1; /* should send data for creating stream at peer. */
 
   out:
 	if (QUIC_FAILED(Status)) {
+		tp_msquic_stream_context_destroy(tmsc);	/* XXX: should free by stream callback??? */
 		if (s != NULL)
-			MsQuic->StreamClose(s);
+			MsQuic->StreamClose(s);		/* XXX: should close by stream callback??? */
 		MsQuic->ConnectionShutdown(c, QUIC_CONNECTION_SHUTDOWN_FLAG_NONE, 0);
 	}
 	return Status;
 }
 
 static QUIC_STATUS
+tp_msquic_connection_accept_stream(HQUIC c, QUIC_CONNECTION_EVENT *ev)
+{
+	struct tp_msquic_stream_context *tmsc;
+	HQUIC s = ev->PEER_STREAM_STARTED.Stream;
+
+	tmsc = tp_msquic_stream_context_new();
+	if (tmsc == NULL) {
+		warn("cannot allocate stream context");
+		MsQuic->StreamShutdown(s, QUIC_STREAM_SHUTDOWN_FLAG_ABORT, 0);
+		return QUIC_STATUS_OUT_OF_MEMORY;
+	}
+	tmsc->tmsc_total = TP_DATASIZE;	/* send from server only. */
+	MsQuic->SetCallbackHandler(s, tp_msquic_stream_callback, tmsc);
+	tp_msquic_stream_send(s, tmsc);
+	return QUIC_STATUS_SUCCESS;
+}
+
+static QUIC_STATUS
 tp_msquic_client_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *ev)
 {
+	QUIC_STATUS Status;
 
 	fprintf(stderr, "client connection: 0x%x\n", ev->Type);
 
+	Status = QUIC_STATUS_SUCCESS;
 	switch (ev->Type) {
 	case QUIC_CONNECTION_EVENT_CONNECTED:
 		fprintf(stderr, "connection %p: connected\n", c);
+		Status = tp_msquic_connection_start_stream(c);
 		break;
 	case QUIC_CONNECTION_EVENT_SHUTDOWN_INITIATED_BY_TRANSPORT:
 		tp_msquic_connection_shutdown(c, ctx, ev);
@@ -138,17 +275,15 @@ tp_msquic_client_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 		for (uint32_t i = 0; i < ev->RESUMPTION_TICKET_RECEIVED.ResumptionTicketLength; i++)
 		    fprintf(stderr, "%.2X", (uint8_t)ev->RESUMPTION_TICKET_RECEIVED.ResumptionTicket[i]);
 		fprintf(stderr ,"\n");
+		/* XXX: should save ticket in the future. */
 		break;
-	case QUIC_CONNECTION_EVENT_PEER_STREAM_STARTED:
-		fprintf(stderr, "connection %p: stream %p: started\n",
-		    c, ev->PEER_STREAM_STARTED.Stream);
-		MsQuic->SetCallbackHandler(ev->PEER_STREAM_STARTED.Stream,
-		    tp_msquic_stream_callback, ctx);
+	case QUIC_CONNECTION_EVENT_PEER_NEEDS_STREAMS:
+		fprintf(stderr, "connection %p: peer needs streams\n", c);
 		break;
 	default:
 		break;
 	}
-	return QUIC_STATUS_SUCCESS;
+	return Status;
 }
 
 static int
@@ -176,6 +311,8 @@ tp_msquic_client(const char *dststr, const char *servstr,
 	memset(&Settings, 0, sizeof(Settings));
 	Settings.IdleTimeoutMs = IdleTimeoutMs;
 	Settings.IsSet.IdleTimeoutMs = TRUE;
+	Settings.CongestionControlAlgorithm = TP_MSQUIC_DEFAULT_CC_ALG;
+	Settings.IsSet.CongestionControlAlgorithm = TRUE;
 
 	Status = MsQuic->ConfigurationOpen(Registration, &Alpn, 1,
 	    &Settings, sizeof(Settings), NULL, &Configuration);
@@ -221,6 +358,7 @@ tp_msquic_client(const char *dststr, const char *servstr,
 static QUIC_STATUS
 tp_msquic_server_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *ev)
 {
+	QUIC_STATUS Status = QUIC_STATUS_SUCCESS;
 
 	fprintf(stderr, "connection callback\n");
 
@@ -228,7 +366,6 @@ tp_msquic_server_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 	case QUIC_CONNECTION_EVENT_CONNECTED:
 		fprintf(stderr, "connected %p\n", c);
 		MsQuic->ConnectionSendResumptionTicket(c, QUIC_SEND_RESUMPTION_FLAG_NONE, 0, NULL);
-		tp_msquic_connection_send_start(c, ctx);
 		break;
 	case QUIC_CONNECTION_EVENT_SHUTDOWN_INITIATED_BY_TRANSPORT:
 		tp_msquic_connection_shutdown(c, ctx, ev);
@@ -239,31 +376,29 @@ tp_msquic_server_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 	case QUIC_CONNECTION_EVENT_SHUTDOWN_COMPLETE:
 		tp_msquic_connection_shutdown_complete(c, ctx, ev);
 		break;
-	case QUIC_CONNECTION_EVENT_PEER_STREAM_STARTED:
-		fprintf(stderr, "connection %p: stream started: %p\n",
-		    c, ev->PEER_STREAM_STARTED.Stream);
-		MsQuic->SetCallbackHandler(ev->PEER_STREAM_STARTED.Stream,
-		    tp_msquic_stream_callback, ctx);
-		break;
-	case QUIC_CONNECTION_EVENT_RESUMED:
-		fprintf(stderr, "connection %p: resumed\n", c);
-		break;
 	case QUIC_CONNECTION_EVENT_LOCAL_ADDRESS_CHANGED:
 		fprintf(stderr, "connection %p: local address changed\n", c);
 		break;
 	case QUIC_CONNECTION_EVENT_PEER_ADDRESS_CHANGED:
 		fprintf(stderr, "connection %p: peer address changed\n", c);
 		break;
+	case QUIC_CONNECTION_EVENT_PEER_STREAM_STARTED:
+		fprintf(stderr, "connection %p: stream started: %p\n",
+		    c, ev->PEER_STREAM_STARTED.Stream);
+		Status = tp_msquic_connection_accept_stream(c, ev);
+		break;
 	case QUIC_CONNECTION_EVENT_STREAMS_AVAILABLE:
 		fprintf(stderr, "connection %p: stream available\n", c);
+		break;
+	case QUIC_CONNECTION_EVENT_RESUMED:
+		fprintf(stderr, "connection %p: resumed\n", c);
 		break;
 	default:
 		fprintf(stderr, "connection %p: unknown event received: %d\n",
 		    c, ev->Type);
 		break;
 	}
-
-	return 0;
+	return Status;
 }
 
 static QUIC_STATUS
@@ -302,6 +437,18 @@ tp_msquic_server_config(const char *cert, const char *key)
 	Settings.IsSet.ServerResumptionLevel = TRUE;
 	Settings.PeerBidiStreamCount = 1;
 	Settings.IsSet.PeerBidiStreamCount = TRUE;
+	Settings.CongestionControlAlgorithm = TP_MSQUIC_DEFAULT_CC_ALG;
+	Settings.IsSet.CongestionControlAlgorithm = TRUE;
+#if 0
+	Settings.SendBufferingEnabled = 1;
+	Settings.IsSet.SendBufferingEnabled = TRUE;
+	Settings.MaxAckDelayMs = 100;
+	Settings.IsSet.MaxAckDelayMs = TRUE;
+	Settings.MaximumMtu = 65535;
+	Settings.IsSet.MaximumMtu = TRUE;
+	Settings.MinimumMtu = 65535;
+	Settings.IsSet.MinimumMtu = TRUE;
+#endif /* 0 */
 
 	QUIC_CERTIFICATE_FILE CertFile;
 	memset(&CertFile, 0, sizeof(CertFile));
