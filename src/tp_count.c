@@ -43,7 +43,7 @@ tp_count_bps(size_t bytes, struct timespec ts)
 }
 
 static void
-tp_count_update(struct tp_count *tpc, struct timespec lasttime)
+tp_count_reset(struct tp_count *tpc, struct timespec lasttime)
 {
 
 	tpc->tpc_count = tpc->tpc_bytes = tpc->tpc_errors = 0;
@@ -72,7 +72,7 @@ tp_count_stats(struct tp_count *tpc)
 	    tpc->tpc_errors,
 	    (long long)time.tv_sec, (long long)time.tv_nsec);
 
-	tp_count_update(tpc, now);
+	tp_count_reset(tpc, now);
 }
 
 void
@@ -82,7 +82,7 @@ tp_count_finalize(struct tp_count *tpc)
 
 	if (tp_clock_get(&now) == -1)
 		err(EX_OSERR, "tp_clock_get() failed");
-	tp_count_update(tpc, now);
+	tp_count_reset(tpc, now);
 }
 
 void
