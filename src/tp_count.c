@@ -50,7 +50,7 @@ tp_count_update(struct tp_count *tpc, struct timespec lasttime)
 	tpc->tpc_lasttime = lasttime;
 }
 
-void
+static void
 tp_count_stats(struct tp_count *tpc)
 {
 	struct timespec now, time;
