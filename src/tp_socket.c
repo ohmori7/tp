@@ -1,20 +1,11 @@
-#include "tp_socket.h"
-
 #include <sys/socket.h>
 #include <assert.h>
 #include <unistd.h>
 
 #include <stdio.h>
 
-#ifdef DEBUG
-#define DPRINTF(a, ...)							\
-	fprintf(stderr, "%s: %d: " a "\n", __FILE__, __LINE__, __VA_ARGS__)
-#else /* DEBUG */
-#define DPRINTF(a, ...)
-#endif /* ! DEBUG */
-
-static int tp_socket_buf_size_recv = 0;
-static int tp_socket_buf_size_send = 0;
+#include "tp.h"
+#include "tp_socket.h"
 
 static int
 tp_socket_buffer_size(int optname, int *sizep)

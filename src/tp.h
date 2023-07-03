@@ -17,6 +17,16 @@ struct tp;
 
 #define TP_DATASIZE	(1024ULL << 10 << 10)	/* 1GB */
 
+#ifdef DEBUG
+#define DPRINTF(a, ...)							\
+	fprintf(stderr, "%s: %d: " a "\n", __FILE__, __LINE__, __VA_ARGS__)
+#else /* DEBUG */
+#define DPRINTF(a, ...)
+#endif /* ! DEBUG */
+
+static int tp_socket_buf_size_recv = 0;
+static int tp_socket_buf_size_send = 0;
+
 int tp_proto_aton(const char *);
 
 void *tp_buf(struct tp *);
