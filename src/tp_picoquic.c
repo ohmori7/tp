@@ -146,7 +146,6 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 		if (event == picoquic_callback_stream_fin) {
 			fprintf(stderr, "fin\n");
 			assert(tpsc != NULL);
-			tp_count_finalize(&tpsc->tpsc_count);
 			tp_count_final_stats(&tpsc->tpsc_count);
 			tp_picoquic_stream_ctx_destroy(tpsc);
 			tpctx->tpctx_status = tp_picoquic_status_done;

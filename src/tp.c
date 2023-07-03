@@ -299,7 +299,6 @@ tp_send(struct tp *tp)
 	tp_count_inc(&tp->tp_count_sent, len);
 
 	if (tp->tp_count_sent.tpc_total_bytes >= TP_DATASIZE) {
-		tp_count_finalize(&tp->tp_count_sent);
 		tp_count_final_stats(&tp->tp_count_sent);
 		return (ssize_t)-1;	/* done */
 	}
@@ -328,7 +327,6 @@ tp_recv(struct tp *tp, off_t off)
 	    tp->tp_buflen - off, 0);
 	if (len == 0) {
 		fprintf(stderr, "connection closed\n");
-		tp_count_finalize(&tp->tp_count_recv);
 		tp_count_final_stats(&tp->tp_count_recv);
 		return (ssize_t)-1;
 	}

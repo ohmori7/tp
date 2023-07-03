@@ -75,11 +75,13 @@ tp_count_stats(struct tp_count *tpc)
 	tp_count_reset(tpc, now);
 }
 
-void
+static void
 tp_count_finalize(struct tp_count *tpc)
 {
 	struct timespec now;
 
+	if (tpc->tpc_count == 0)
+		return;
 	if (tp_clock_get(&now) == -1)
 		err(EX_OSERR, "tp_clock_get() failed");
 	tp_count_reset(tpc, now);
@@ -90,6 +92,8 @@ tp_count_final_stats(struct tp_count *tpc)
 {
 	struct timespec time;
 	struct tp_count_value bytes, bps;
+
+	tp_count_finalize(tpc);
 
 	bytes = tp_count_value(tpc->tpc_total_bytes);
 	time = tp_clock_sub(tpc->tpc_lasttime, tpc->tpc_firsttime);
