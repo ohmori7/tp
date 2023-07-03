@@ -13,7 +13,7 @@ struct tp;
 #define TP_MTU		1500
 #define TP_IPHDRLEN	20
 #define	TP_THDRLEN	20
-#define TP_MSS		(1500 - TP_IPHDRLEN - TP_THDRLEN)
+#define TP_MSS		(TP_MTU - TP_IPHDRLEN - TP_THDRLEN)
 
 #define TP_DATASIZE	(1024ULL << 10 << 10)	/* 1GB */
 
