@@ -129,8 +129,10 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 	switch (event) {
 	case picoquic_callback_stream_data:
 	case picoquic_callback_stream_fin:
-		if (tpsc == NULL) {
-			assert(tpctx != NULL);
+		assert(tpctx != NULL);
+		if (tpsc != NULL)
+			tp_count_inc(&tpsc->tpsc_count, len);
+		else {
 			tpsc = tp_picoquic_stream_ctx_new(stream_id);
 			if (tpsc == NULL ||
 			    picoquic_set_app_stream_ctx(cnx, stream_id, tpsc) != 0) {
@@ -139,9 +141,6 @@ tp_picoquic_client_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 				break;
 			}
 			fprintf(stderr, "open stream\n");
-		} else {
-			assert(tpsc != NULL);
-			tp_count_inc(&tpsc->tpsc_count, len);
 		}
 		if (event == picoquic_callback_stream_fin) {
 			fprintf(stderr, "fin\n");
