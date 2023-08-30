@@ -224,13 +224,25 @@ tp_connect(const char *protostr, const char *dststr, const char *dsrvstr)
 	return tp_socket(protostr, dststr, dsrvstr, connect, "connect");
 }
 
+static int
+_tp_bind(int s, const struct sockaddr *sa, socklen_t salen)
+{
+	int error, on = 1;
+
+	error = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+	if (error != 0)
+		perror("setsockopt(SO_REUSEADDR)");
+
+	return bind(s, sa, salen);
+}
+
 struct tp *
 tp_listen(const char *protostr, const char *addrstr, const char *srvstr)
 {
 	struct tp *tp;
 	int error;
 
-	tp = tp_socket(protostr, addrstr, srvstr, bind, "bind");
+	tp = tp_socket(protostr, addrstr, srvstr, _tp_bind, "bind");
 	if (tp == NULL)
 		return NULL;
 
