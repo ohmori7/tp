@@ -11,6 +11,9 @@
 #include <stdlib.h>
 
 #include <openssl/engine.h>
+#if ! defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif /* ! LIBRESSL_VERSION_NUMBER && OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 #include "picotls.h"
 #include "picotls/openssl.h"
@@ -23,6 +26,10 @@
 #include "tp_tls.h"
 
 /* picoquic/tls_api.h can be a reference. */
+
+#if ! defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+OSSL_PROVIDER *openssl_default_provider = NULL;
+#endif /* ! LIBRESSL_VERSION_NUMBER && OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
 static const ptls_key_exchange_algorithm_t *tp_tls_keyex_algs_all[] = {
 	&ptls_openssl_secp256r1,
