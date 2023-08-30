@@ -7,6 +7,9 @@
 #include "tp.h"
 #include "tp_socket.h"
 
+static int tp_socket_buf_size_recv = 0;
+static int tp_socket_buf_size_send = 0;
+
 static int
 tp_socket_buffer_size(int optname, int *sizep)
 {

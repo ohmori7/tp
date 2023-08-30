@@ -24,9 +24,6 @@ struct tp;
 #define DPRINTF(a, ...)
 #endif /* ! DEBUG */
 
-static int tp_socket_buf_size_recv = 0;
-static int tp_socket_buf_size_send = 0;
-
 int tp_proto_aton(const char *);
 
 void *tp_buf(struct tp *);
