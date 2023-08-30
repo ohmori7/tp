@@ -115,6 +115,9 @@ tp_count_init(struct tp_count *tpc, const char *desc)
 	tpc->tpc_count = 0;
 	tpc->tpc_bytes = 0;
 	tpc->tpc_errors = 0;
+	tpc->tpc_total_count = 0;
+	tpc->tpc_total_bytes = 0;
+	tpc->tpc_total_errors = 0;
 	tpc->tpc_interval = TP_COUNT_DEFAULT_INTERVAL;
 	if (tp_clock_get(&tpc->tpc_firsttime) == -1)
 		err(EX_OSERR, "cannot get clock");
