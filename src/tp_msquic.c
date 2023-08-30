@@ -63,8 +63,8 @@ tp_msquic_stream_context_destroy(struct tp_msquic_stream_context *tmsc)
 
 	if (tmsc == NULL)
 		return;
-	free(tmsc);
 	DPRINTF("stream ctx %p: free", tmsc);
+	free(tmsc);
 }
 
 static QUIC_STATUS
