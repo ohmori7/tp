@@ -150,11 +150,11 @@ tp_msquic_stream_callback(HQUIC s, void *ctx, QUIC_STREAM_EVENT *ev)
 		break;
 	case QUIC_STREAM_EVENT_SHUTDOWN_COMPLETE:
 		fprintf(stderr, "stream %p: shutdown complete\n", s);
-		tp_msquic_stream_context_destroy(ctx);
 		if (! ev->SHUTDOWN_COMPLETE.AppCloseInProgress)
 			MsQuic->StreamClose(s);
 		tp_count_final_stats(&tmsc->tmsc_recv_count);
 		tp_count_final_stats(&tmsc->tmsc_sent_count);
+		tp_msquic_stream_context_destroy(ctx);
 		break;
 	default:
 		break;
