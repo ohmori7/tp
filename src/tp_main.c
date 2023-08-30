@@ -19,8 +19,10 @@
 #define	TP_DEFAULT_ADDR		"127.0.0.1"
 #define	TP_DEFAULT_SERVICE	"12345"
 
+#ifdef Linux
 /* XXX: NetBSD and macOS (OpenBSD/FreeBSD as well?) */
 #define HAVE_GETPROGNAME
+#endif /* Linux */
 
 #ifndef HAVE_GETPROGNAME
 static const char *progname;
