@@ -1,4 +1,5 @@
 #include <err.h>
+#include <signal.h>
 #include <sysexits.h>
 #include <unistd.h>
 
