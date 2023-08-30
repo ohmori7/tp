@@ -1,4 +1,6 @@
+#if 1
 #define PTLS_WITHOUT_FUSION
+#endif
 
 #include <assert.h>
 #include <err.h>
