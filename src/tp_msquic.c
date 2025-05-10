@@ -177,7 +177,7 @@ static void
 tp_msquic_connection_shutdown_by_peer(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *ev)
 {
 
-	fprintf(stderr, "connection %p: shutdown by peer: error code=0x%lu\n",
+	fprintf(stderr, "connection %p: shutdown by peer: error code=0x%llu\n",
 	    c, ev->SHUTDOWN_INITIATED_BY_PEER.ErrorCode);
 }
 
