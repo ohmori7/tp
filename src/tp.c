@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* XXX: better to automatically detect by cmake or automake... */
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(linux)
+#define HAVE_TCP_INFO
+#endif
+
 #include "tp.h"
 #include "tp_count.h"
 
@@ -142,6 +147,25 @@ tp_set_send(struct tp *tp, ssize_t (*cb)(struct tp *, int, const void *, size_t,
 {
 
 	tp->tp_send = cb;
+}
+
+int
+tp_get_info(struct tp *tp)
+{
+#ifdef HAVE_TCP_INFO
+	struct tcp_info ti;
+	socklen_t tilen;
+	int error;
+
+	tilen = sizeof(ti);
+	error = getsockopt(tp->tp_sock, IPPROTO_TCP, &ti, &tilen);
+	if (error == -1)
+		perror("getsockopt");
+	return error;
+#else /* HAVE_TCP_INFO */
+	/* XXX: should set errno. */
+	return -1;
+#endif /* ! HAVE_TCP_INFO */
 }
 
 int
