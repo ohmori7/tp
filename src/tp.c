@@ -1,5 +1,15 @@
+/* XXX: better to automatically detect by cmake or automake... */
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(linux)
+#define HAVE_TCP_INFO
+#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef HAVE_TCP_INFO
+#if defined(linux)
+#include <linux/tcp.h>
+#endif /* linux */
+#endif /* HAVE_TCP_INFO */
 #include <assert.h>
 #include <errno.h>
 #include <netdb.h>
@@ -9,11 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* XXX: better to automatically detect by cmake or automake... */
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(linux)
-#define HAVE_TCP_INFO
-#endif
 
 #include "tp.h"
 #include "tp_count.h"
@@ -158,7 +163,7 @@ tp_get_info(struct tp *tp)
 	int error;
 
 	tilen = sizeof(ti);
-	error = getsockopt(tp->tp_sock, IPPROTO_TCP, &ti, &tilen);
+	error = getsockopt(tp->tp_sock, IPPROTO_TCP, TCP_INFO, &ti, &tilen);
 	if (error == -1)
 		perror("getsockopt");
 	return error;
