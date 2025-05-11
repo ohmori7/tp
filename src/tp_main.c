@@ -9,16 +9,13 @@
 #include <stdlib.h>
 
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_clock.h"
 #include "tp_handle.h"
 #include "tp_tcp.h"
 #include "tp_tls.h"
 #include "tp_picoquic.h"
 #include "tp_msquic.h"
-
-#define	TP_DEFAULT_PROTO	"tcp"
-#define	TP_DEFAULT_ADDR		"127.0.0.1"
-#define	TP_DEFAULT_SERVICE	"12345"
 
 #ifdef Linux
 /* XXX: NetBSD and macOS (OpenBSD/FreeBSD as well?) */
@@ -93,10 +90,7 @@ Examples:\n\
 int
 main(int argc, char * const argv[])
 {
-	const char *protostr = TP_DEFAULT_PROTO;
-	const char *addrstr = TP_DEFAULT_ADDR;
-	const char *servstr = TP_DEFAULT_SERVICE;
-	const char *filename = NULL;
+	struct tp_option to;
 	struct tp_handle *th;
 	int ch, error;
 	bool cflag;
@@ -110,16 +104,16 @@ main(int argc, char * const argv[])
 		switch (ch) {
 		case 'c':
 			cflag = true;
-			addrstr = optarg;
+			to.to_addrname = optarg;
 			break;
 		case 'f':
-			filename = optarg;
+			to.to_filename = optarg;
 			break;
 		case 'p':
-			servstr = optarg;
+			to.to_servicename = optarg;
 			break;
 		case 'B':
-			addrstr = optarg;	/* XXX */
+			to.to_addrname = optarg;	/* XXX */
 			break;
 		case '?':
 		case 'h':
@@ -132,7 +126,7 @@ main(int argc, char * const argv[])
 	argv += optind;
 
 	if (argc > 0) {
-		protostr = argv[0];
+		to.to_protoname = argv[0];
 		argc--;
 		argv++;
 	}
@@ -144,18 +138,18 @@ main(int argc, char * const argv[])
 	tp_picoquic_init();
 	tp_msquic_init();
 
-	th = tp_handle_lookup_by_name(protostr);
+	th = tp_handle_lookup_by_name(to.to_protoname);
 	if (th == NULL)
-		usage("unknown protocol: %s\n", protostr);
+		usage("unknown protocol: %s\n", to.to_protoname);
 		/*NOTREACHED*/
 
 	/* XXX: this doesn't work on macOS... */
 	(void)signal(SIGINT, sigint);
 
 	if (cflag)
-		error = tp_handle_client(th, addrstr, servstr, filename, argc, argv);
+		error = tp_handle_client(th, &to, argc, argv);
 	else
-		error = tp_handle_server(th, addrstr, servstr, filename, argc, argv);
+		error = tp_handle_server(th, &to, argc, argv);
 
 	return error;
 }

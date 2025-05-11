@@ -30,7 +30,7 @@ CFLAGS=	-Wall -O2 -Werror -g
 LDFLAGS=	$(PICOLDADD)
 LDFLAGS+=	$(MSQUICLDADD)
 SRCDIR=	../src
-SRCS=	tp.c tp_clock.c tp_count.c tp_socket.c tp_handle.c tp_main.c
+SRCS=	tp.c tp_option.c tp_clock.c tp_count.c tp_socket.c tp_handle.c tp_main.c
 SRCS+=	tp_tcp.c tp_tls.c tp_picoquic.c
 SRCS+=	tp_msquic.c
 

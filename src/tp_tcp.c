@@ -3,18 +3,19 @@
 #include <stdio.h>
 
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_handle.h"
 
 static int
-tp_tcp_client(const char *dststr, const char *srvstr, const char *filename,
-    int argc, char * const argv[])
+tp_tcp_client(struct tp_option *to, int argc, char * const argv[])
 {
-	const char *protostr = "tcp";
 	struct tp *tp;
 
-	fprintf(stderr, "connect to %s.%s using %s\n", dststr, srvstr, protostr);
+	to->to_protoname = "tcp"; /* XXX */
+	fprintf(stderr, "connect to %s.%s using %s\n",
+	    to->to_addrname, to->to_servicename, to->to_protoname);
 
-	tp = tp_connect(protostr, dststr, srvstr, filename);
+	tp = tp_connect(to);
 	if (tp == NULL)
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/
@@ -26,15 +27,15 @@ tp_tcp_client(const char *dststr, const char *srvstr, const char *filename,
 }
 
 static int
-tp_tcp_server(const char *dststr, const char *srvstr, const char *filename,
-    int argc, char * const argv[])
+tp_tcp_server(struct tp_option *to, int argc, char * const argv[])
 {
-	const char *protostr = "tcp";
 	struct tp *ltp, *tp;
 
-	fprintf(stderr, "waiting on %s.%s using %s\n", dststr, srvstr, protostr);
+	to->to_protoname = "tcp"; /* XXX */
+	fprintf(stderr, "waiting on %s.%s using %s\n",
+	    to->to_addrname, to->to_servicename, to->to_protoname);
 
-	ltp = tp_listen(protostr, dststr, srvstr, filename);
+	ltp = tp_listen(to);
 	if (ltp == NULL)
 		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/

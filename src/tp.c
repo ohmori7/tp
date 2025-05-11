@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_count.h"
 
 struct tp {
@@ -250,20 +251,20 @@ tp_socket_cb(const struct addrinfo *res, void *arg)
 }
 
 static struct tp *
-tp_socket(const char *protostr, const char *addrstr, const char *srvstr, const char *filename,
+tp_socket(struct tp_option *to,
     int (*cb)(int, const struct sockaddr *, socklen_t), const char *cbname)
 {
 	struct tp_socket_cb_arg tsca = { cb, cbname, -1, NULL };
 	struct tp *tp;
 	int error;
 
-	error = tp_name_resolve(tp_socket_type(tp_proto_aton(protostr)),
-	    addrstr, srvstr, tp_socket_cb, &tsca);
+	error = tp_name_resolve(tp_socket_type(tp_proto_aton(to->to_protoname)),
+	    to->to_addrname, to->to_servicename, tp_socket_cb, &tsca);
 	if (error == -1)
 		err(EX_OSERR, "%s", tsca.tsca_cause);
 		/*NOTEACHED*/
 
-	tp = tp_init(tp_proto_aton(protostr), filename);
+	tp = tp_init(tp_proto_aton(to->to_protoname), to->to_filename);
 	if (tp == NULL)
 		err(EX_OSERR, "cannot create socket structure");
 		/*NOTEACHED*/
@@ -273,11 +274,11 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr, const c
 }
 
 struct tp *
-tp_connect(const char *protostr, const char *dststr, const char *dsrvstr, const char *filename)
+tp_connect(struct tp_option *to)
 {
 	struct tp *tp;
 
-	tp = tp_socket(protostr, dststr, dsrvstr, filename, connect, "connect");
+	tp = tp_socket(to, connect, "connect");
 	if (tp == NULL)
 		goto bad;
 	if (tp->tp_filename != NULL) {
@@ -308,15 +309,16 @@ _tp_bind(int s, const struct sockaddr *sa, socklen_t salen)
 }
 
 struct tp *
-tp_listen(const char *protostr, const char *addrstr, const char *srvstr, const char *filename)
+tp_listen(struct tp_option *to)
 {
 	struct tp *tp;
 	int error;
 
-	tp = tp_socket(protostr, addrstr, srvstr, filename, _tp_bind, "bind");
+	tp = tp_socket(to, _tp_bind, "bind");
 	if (tp == NULL)
 		return NULL;
 
+	tp_set_cc(tp);
 	error = listen(tp->tp_sock, 5 /* XXX */);
 	if (error == -1)
 		err(EX_OSERR, "listen failed");

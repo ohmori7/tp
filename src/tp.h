@@ -24,6 +24,8 @@ struct tp;
 #define DPRINTF(a, ...)
 #endif /* ! DEBUG */
 
+struct tp_option;
+
 int tp_proto_aton(const char *);
 
 void *tp_buf(struct tp *);
@@ -38,8 +40,8 @@ struct addrinfo; /* XXX: in netdb.h though.. */
 int tp_name_resolve(int, const char *, const char *,
     int (*)(const struct addrinfo *, void *), void *);
 
-struct tp *tp_connect(const char *, const char *, const char *, const char *);
-struct tp *tp_listen(const char *, const char *, const char *, const char *);
+struct tp *tp_connect(struct tp_option *to);
+struct tp *tp_listen(struct tp_option *to);
 
 struct tp *tp_accept(struct tp *);
 
