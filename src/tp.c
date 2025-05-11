@@ -281,7 +281,8 @@ tp_connect(const char *protostr, const char *dststr, const char *dsrvstr, const 
 	if (tp == NULL)
 		goto bad;
 	if (tp->tp_filename != NULL) {
-		tp->tp_fd = open(tp->tp_filename, O_CREAT | O_TRUNC | O_WRONLY);
+		tp->tp_fd = open(tp->tp_filename, O_CREAT | O_TRUNC | O_WRONLY,
+		    S_IRUSR | S_IWUSR);
 		if (tp->tp_fd == -1) {
 			perror("file open failed");
 			goto bad;
