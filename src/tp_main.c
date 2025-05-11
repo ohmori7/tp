@@ -137,10 +137,6 @@ main(int argc, char * const argv[])
 		argv++;
 	}
 
-	if (filename != NULL && cflag)
-		usage("a file name is allowed on a server.");
-		/*NOTREACHED*/
-
 	tp_clock_init();
 
 	tp_tcp_init();
@@ -157,7 +153,7 @@ main(int argc, char * const argv[])
 	(void)signal(SIGINT, sigint);
 
 	if (cflag)
-		error = tp_handle_client(th, addrstr, servstr, argc, argv);
+		error = tp_handle_client(th, addrstr, servstr, filename, argc, argv);
 	else
 		error = tp_handle_server(th, addrstr, servstr, filename, argc, argv);
 

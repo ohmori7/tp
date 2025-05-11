@@ -255,10 +255,25 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr, const c
 }
 
 struct tp *
-tp_connect(const char *protostr, const char *dststr, const char *dsrvstr)
+tp_connect(const char *protostr, const char *dststr, const char *dsrvstr, const char *filename)
 {
+	struct tp *tp;
 
-	return tp_socket(protostr, dststr, dsrvstr, NULL, connect, "connect");
+	tp = tp_socket(protostr, dststr, dsrvstr, filename, connect, "connect");
+	if (tp == NULL)
+		goto bad;
+	if (tp->tp_filename != NULL) {
+		tp->tp_fd = open(tp->tp_filename, O_WRONLY);
+		if (tp->tp_fd == -1) {
+			perror("file open failed");
+			goto bad;
+		}
+	}
+	return tp;
+  bad:
+	if (tp != NULL)
+		tp_free(tp);
+	return NULL;
 }
 
 static int
@@ -408,6 +423,9 @@ tp_recv(struct tp *tp, off_t off)
 			perror("recv failed");
 			break;
 		}
+	else if (tp->tp_fd != -1)
+		if (write(tp->tp_fd, tp->tp_buf + off, len) == (ssize_t)-1)
+			perror("file write failed");
 
 	return len;
 }
