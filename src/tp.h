@@ -46,6 +46,3 @@ struct tp *tp_accept(struct tp *);
 ssize_t tp_write(struct tp *, const void *, size_t);
 ssize_t tp_send(struct tp *);
 ssize_t tp_recv(struct tp *, off_t);
-
-int tp_client_main(const char *, const char *, const char *);
-int tp_server_main(const char *, const char *, const char *);
