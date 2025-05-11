@@ -9,6 +9,7 @@
 #define DEBUG /* DPRINTF() */
 #endif /* 0 */
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_count.h"
 #include "tp_handle.h"
 
@@ -287,8 +288,7 @@ tp_msquic_client_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 }
 
 static int
-tp_msquic_client(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_msquic_client(struct tp_option *to, int argc, char * const argv[])
 {
 	QUIC_STATUS Status;
 	QUIC_SETTINGS Settings;
@@ -340,10 +340,10 @@ tp_msquic_client(const char *dststr, const char *servstr, const char *filename,
 		/*NOTREACHED*/
 
 	fprintf(stderr, "connection %p: connecting to %s:%s\n",
-	    Connection, dststr, servstr);
+	    Connection, to->to_addrname, to->to_servicename);
 
 	Status = MsQuic->ConnectionStart(Connection, Configuration, QUIC_ADDRESS_FAMILY_UNSPEC,
-	    dststr, atoi(servstr));
+	    to->to_addrname, atoi(to->to_servicename));
 	if (QUIC_FAILED(Status))
 		err(EX_SOFTWARE, "cannot connect to a server: 0x%x\n", Status);
 		/*NOTREACHED*/
@@ -477,8 +477,7 @@ tp_msquic_server_config(const char *cert, const char *key)
 }
 
 static int
-tp_msquic_server(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_msquic_server(struct tp_option *to, int argc, char * const argv[])
 {
 	const char *cert;
 	const char *key;
@@ -518,14 +517,14 @@ tp_msquic_server(const char *dststr, const char *servstr, const char *filename,
 	tp_msquic_server_config(cert, key);
 
 	Listener = NULL;
-	Status = MsQuic->ListenerOpen(Registration, tp_msquic_listen_callback, filename /* XXX */, &Listener);
+	Status = MsQuic->ListenerOpen(Registration, tp_msquic_listen_callback, to /* XXX */, &Listener);
 	if (QUIC_FAILED(Status))
 		err(EX_SOFTWARE, "cannot open MS QUIC listenr: 0x%x\n", Status);
 		/*NOTREACHED*/
 
 	memset(&Address, 0, sizeof(Address));
 	QuicAddrSetFamily(&Address, QUIC_ADDRESS_FAMILY_UNSPEC);
-	QuicAddrSetPort(&Address, atoi(servstr));
+	QuicAddrSetPort(&Address, atoi(to->to_servicename));
 
 	Status = MsQuic->ListenerStart(Listener, &Alpn, 1, &Address);
 	if (QUIC_FAILED(Status))

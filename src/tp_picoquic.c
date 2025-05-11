@@ -10,6 +10,7 @@
 #include "picoquic_utils.h"
 
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_count.h"
 #include "tp_handle.h"
 #include "tp_socket.h"
@@ -216,8 +217,7 @@ tp_picoquic_client_loop_cb(picoquic_quic_t *quic,
 }
 
 static int
-tp_picoquic_client(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_picoquic_client(struct tp_option *to, int argc, char * const argv[])
 {
 	picoquic_quic_t *quic;
 	picoquic_cnx_t *cnx;
@@ -242,7 +242,7 @@ tp_picoquic_client(const char *dststr, const char *servstr, const char *filename
 	picoquic_set_log_level(quic, 1);
 #endif /* notyet */
 
-	cnx = tp_picoquic_create_cnx(quic, dststr, servstr, &ss);
+	cnx = tp_picoquic_create_cnx(quic, to->to_addrname, to->to_servicename, &ss);
 	if (cnx == NULL)
 		errx(EX_SOFTWARE, "cannot create QUIC connection");
 		/*NOTREACHED*/
@@ -365,8 +365,7 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 }
 
 static int
-tp_picoquic_server(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_picoquic_server(struct tp_option *to, int argc, char * const argv[])
 {
 	picoquic_quic_t *quic;
 	const char *cert;
@@ -407,7 +406,7 @@ tp_picoquic_server(const char *dststr, const char *servstr, const char *filename
 	picoquic_set_key_log_file_from_env(quic);
 #endif /* notyet */
 
-	port = atoi(servstr);
+	port = atoi(to->to_servicename);
 	error = picoquic_packet_loop(quic, port, 0, 0,
 	    tp_socket_buffer_recv_size(), /* XXX: ineffective for sending */
 	    do_not_use_gso, NULL, NULL);

@@ -22,6 +22,7 @@
 #endif /* (! _WINDOWS || _WINDOWS64) && ! PTLS_WITHOUT_FUSION */
 
 #include "tp.h"
+#include "tp_option.h"
 #include "tp_handle.h"
 #include "tp_tls.h"
 
@@ -569,10 +570,8 @@ tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 }
 
 int
-tp_tls_server(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_tls_server(struct tp_option *to, int argc, char * const argv[])
 {
-	const char *protostr = "tls";
 	const char *cert;
 	const char *key;
 	struct tp *ltp, *tp;
@@ -588,9 +587,11 @@ tp_tls_server(const char *dststr, const char *servstr, const char *filename,
 	if (argc != 0)
 		errx(EX_USAGE, "extra argument(s)");
 
-	fprintf(stderr, "waiting on %s.%s using %s\n", dststr, servstr, protostr);
+	fprintf(stderr, "waiting on %s.%s using %s\n",
+	    to->to_addrname, to->to_servicename, to->to_protoname);
 
-	ltp = tp_listen(protostr, dststr, servstr, filename);
+	to->to_protoname = "tls"; /* XXX */
+	ltp = tp_listen(to);
 	if (ltp == NULL)
 		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/
@@ -617,10 +618,8 @@ tp_tls_server(const char *dststr, const char *servstr, const char *filename,
 }
 
 static int
-tp_tls_client(const char *dststr, const char *servstr, const char *filename,
-    int argc, char * const argv[])
+tp_tls_client(struct tp_option *to, int argc, char * const argv[])
 {
-	const char *protostr = "tls";
 	const char *cert;
 	struct tp *tp;
 	ptls_context_t *ctx;
@@ -638,9 +637,11 @@ tp_tls_client(const char *dststr, const char *servstr, const char *filename,
 	if (argc != 0)
 		errx(EX_USAGE, "extra argument(s)");
 
-	fprintf(stderr, "connect to %s.%s using %s\n", dststr, servstr, protostr);
+	to->to_protoname = "tls"; /* XXX */
+	fprintf(stderr, "connect to %s.%s using %s\n",
+	    to->to_addrname, to->to_servicename, to->to_protoname);
 
-	tp = tp_connect(protostr, dststr, servstr, filename);
+	tp = tp_connect(to);
 	if (tp == NULL)
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/
