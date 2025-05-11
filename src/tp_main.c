@@ -100,6 +100,7 @@ main(int argc, char * const argv[])
 #endif /* ! HAVE_GETPROGNAME */
 
 	cflag = false;
+	tp_option_init(&to);
 	while ((ch = getopt(argc, argv, "c:f:hp:t:B:")) != -1) {
 		switch (ch) {
 		case 'c':
