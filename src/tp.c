@@ -171,7 +171,7 @@ tp_set_cc(struct tp *tp)
 	const char *ccstr = "bbr";
 	int error;
 
-	error = setsockopt(tp->to_sock, IPPROTO_TCP, TCP_CONGESTION, ccstr, strlen(ccstr));
+	error = setsockopt(tp->tp_sock, IPPROTO_TCP, TCP_CONGESTION, ccstr, strlen(ccstr));
 	if (error == -1)
 		perror("setsockopt");
 	return error;
