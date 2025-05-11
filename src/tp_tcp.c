@@ -26,7 +26,7 @@ tp_tcp_client(const char *dststr, const char *srvstr,
 }
 
 static int
-tp_tcp_server(const char *dststr, const char *srvstr,
+tp_tcp_server(const char *dststr, const char *srvstr, const char *filename,
     int argc, char * const argv[])
 {
 	const char *protostr = "tcp";
@@ -34,7 +34,7 @@ tp_tcp_server(const char *dststr, const char *srvstr,
 
 	fprintf(stderr, "waiting on %s.%s using %s\n", dststr, srvstr, protostr);
 
-	ltp = tp_listen(protostr, dststr, srvstr);
+	ltp = tp_listen(protostr, dststr, srvstr, filename);
 	if (ltp == NULL)
 		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/

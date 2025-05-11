@@ -365,7 +365,7 @@ tp_picoquic_server_cb(picoquic_cnx_t *cnx, uint64_t stream_id,
 }
 
 static int
-tp_picoquic_server(const char *dststr, const char *servstr,
+tp_picoquic_server(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	picoquic_quic_t *quic;

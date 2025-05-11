@@ -12,6 +12,7 @@
 #endif /* HAVE_TCP_INFO */
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -27,6 +28,8 @@ struct tp {
 	enum tp_proto tp_proto;
 	int tp_sock;
 	void *tp_ctx;
+	int tp_fd;
+	const char *tp_filename;
 	ssize_t (*tp_recv)(struct tp *, int, void *, size_t, int);
 	ssize_t (*tp_send)(struct tp *, int, const void *, size_t, int);
 	struct tp_count tp_count_recv, tp_count_sent;
@@ -99,7 +102,7 @@ _tp_send(struct tp *tp, int sock, const void *data, size_t datalen, int flags)
 }
 
 static struct tp *
-tp_init(enum tp_proto proto)
+tp_init(enum tp_proto proto, const char *filename)
 {
 	struct tp *tp;
 
@@ -109,8 +112,11 @@ tp_init(enum tp_proto proto)
 	tp->tp_proto = proto;
 	tp->tp_sock = -1;
 	tp->tp_ctx = NULL;
+	tp->tp_fd = -1;
+	tp->tp_filename = filename;	/* XXX: should do strdup()??? */
 	tp->tp_recv = _tp_recv;
 	tp->tp_send = _tp_send;
+	tp->tp_filename = filename;
 	tp_count_init(&tp->tp_count_recv, "recv");
 	tp_count_init(&tp->tp_count_sent, "sent");
 	tp->tp_buflen = sizeof(tp->tp_buf);
@@ -123,6 +129,8 @@ tp_free(struct tp *tp)
 
 	if (tp->tp_sock != -1)
 		(void)close(tp->tp_sock);
+	if (tp->tp_fd != -1)
+		(void)close(tp->tp_fd);
 	free(tp);
 }
 
@@ -224,7 +232,7 @@ tp_socket_cb(const struct addrinfo *res, void *arg)
 }
 
 static struct tp *
-tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
+tp_socket(const char *protostr, const char *addrstr, const char *srvstr, const char *filename,
     int (*cb)(int, const struct sockaddr *, socklen_t), const char *cbname)
 {
 	struct tp_socket_cb_arg tsca = { cb, cbname, -1, NULL };
@@ -237,7 +245,7 @@ tp_socket(const char *protostr, const char *addrstr, const char *srvstr,
 		err(EX_OSERR, "%s", tsca.tsca_cause);
 		/*NOTEACHED*/
 
-	tp = tp_init(tp_proto_aton(protostr));
+	tp = tp_init(tp_proto_aton(protostr), filename);
 	if (tp == NULL)
 		err(EX_OSERR, "cannot create socket structure");
 		/*NOTEACHED*/
@@ -250,7 +258,7 @@ struct tp *
 tp_connect(const char *protostr, const char *dststr, const char *dsrvstr)
 {
 
-	return tp_socket(protostr, dststr, dsrvstr, connect, "connect");
+	return tp_socket(protostr, dststr, dsrvstr, NULL, connect, "connect");
 }
 
 static int
@@ -266,12 +274,12 @@ _tp_bind(int s, const struct sockaddr *sa, socklen_t salen)
 }
 
 struct tp *
-tp_listen(const char *protostr, const char *addrstr, const char *srvstr)
+tp_listen(const char *protostr, const char *addrstr, const char *srvstr, const char *filename)
 {
 	struct tp *tp;
 	int error;
 
-	tp = tp_socket(protostr, addrstr, srvstr, _tp_bind, "bind");
+	tp = tp_socket(protostr, addrstr, srvstr, filename, _tp_bind, "bind");
 	if (tp == NULL)
 		return NULL;
 
@@ -293,16 +301,25 @@ tp_accept(struct tp *ltp)
 	s = accept(ltp->tp_sock, (struct sockaddr*)&ss, &sslen);
 	if (s == -1) {
 		perror("accept failed");
-		return NULL;
+		goto bad;
 	}
-	tp = tp_init(ltp->tp_proto);
-	if (tp == NULL) {
-		(void)close(s);
-		return NULL;
-	}
+	tp = tp_init(ltp->tp_proto, ltp->tp_filename);
+	if (tp == NULL)
+		goto bad;
 	tp->tp_sock = s;
+	if (tp->tp_filename != NULL) {
+		tp->tp_fd = open(tp->tp_filename, O_RDONLY);
+		if (tp->tp_fd == -1) {
+			perror("file open failed");
+			goto bad;
+		}
+	}
 
 	return tp;
+  bad:
+	if (s != -1)
+		(void)close(s);
+	return NULL;
 }
 
 ssize_t
@@ -329,9 +346,15 @@ tp_send(struct tp *tp)
 {
 	ssize_t len;
 
-	len = tp->tp_buflen;
-	if (tp->tp_count_sent.tpc_total_bytes + len > TP_DATASIZE)
-		len = TP_DATASIZE - tp->tp_count_sent.tpc_total_bytes;
+	if (tp->tp_fd != -1) {
+		len = read(tp->tp_fd, tp->tp_buf, tp->tp_buflen);
+		if (len == 0)
+			return (ssize_t)-1;
+	} else {
+		len = tp->tp_buflen;
+		if (tp->tp_count_sent.tpc_total_bytes + len > TP_DATASIZE)
+			len = TP_DATASIZE - tp->tp_count_sent.tpc_total_bytes;
+	}
 
 	len = (*tp->tp_send)(tp, tp->tp_sock, tp->tp_buf, len, 0);
 	if (len == 0)
@@ -339,7 +362,7 @@ tp_send(struct tp *tp)
 
 	tp_count_inc(&tp->tp_count_sent, len);
 
-	if (tp->tp_count_sent.tpc_total_bytes >= TP_DATASIZE) {
+	if (tp->tp_fd == -1 && tp->tp_count_sent.tpc_total_bytes >= TP_DATASIZE) {
 		tp_count_final_stats(&tp->tp_count_sent);
 		return (ssize_t)-1;	/* done */
 	}

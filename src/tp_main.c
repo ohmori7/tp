@@ -96,6 +96,7 @@ main(int argc, char * const argv[])
 	const char *protostr = TP_DEFAULT_PROTO;
 	const char *addrstr = TP_DEFAULT_ADDR;
 	const char *servstr = TP_DEFAULT_SERVICE;
+	const char *filename = NULL;
 	struct tp_handle *th;
 	int ch, error;
 	bool cflag;
@@ -105,11 +106,14 @@ main(int argc, char * const argv[])
 #endif /* ! HAVE_GETPROGNAME */
 
 	cflag = false;
-	while ((ch = getopt(argc, argv, "c:hp:t:B:")) != -1) {
+	while ((ch = getopt(argc, argv, "c:f:hp:t:B:")) != -1) {
 		switch (ch) {
 		case 'c':
 			cflag = true;
 			addrstr = optarg;
+			break;
+		case 'f':
+			filename = optarg;
 			break;
 		case 'p':
 			servstr = optarg;
@@ -133,6 +137,10 @@ main(int argc, char * const argv[])
 		argv++;
 	}
 
+	if (filename != NULL && cflag)
+		usage("a file name is allowed on a server.");
+		/*NOTREACHED*/
+
 	tp_clock_init();
 
 	tp_tcp_init();
@@ -151,7 +159,7 @@ main(int argc, char * const argv[])
 	if (cflag)
 		error = tp_handle_client(th, addrstr, servstr, argc, argv);
 	else
-		error = tp_handle_server(th, addrstr, servstr, argc, argv);
+		error = tp_handle_server(th, addrstr, servstr, filename, argc, argv);
 
 	return error;
 }

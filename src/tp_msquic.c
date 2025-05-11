@@ -406,9 +406,9 @@ tp_msquic_listen_callback(HQUIC Listener, void *ctx, QUIC_LISTENER_EVENT *ev)
 {
 	QUIC_STATUS Status;
 
-	(void)Listener, (void)ctx;
+	(void)Listener;
 
-	fprintf(stderr, "Listener event: %u\n", ev->Type);
+	fprintf(stderr, "Listener event: %u: ctx: %p\n", ev->Type, ctx);
 
 	switch (ev->Type) {
 	case QUIC_LISTENER_EVENT_NEW_CONNECTION:
@@ -477,7 +477,7 @@ tp_msquic_server_config(const char *cert, const char *key)
 }
 
 static int
-tp_msquic_server(const char *dststr, const char *servstr,
+tp_msquic_server(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	const char *cert;
@@ -518,7 +518,7 @@ tp_msquic_server(const char *dststr, const char *servstr,
 	tp_msquic_server_config(cert, key);
 
 	Listener = NULL;
-	Status = MsQuic->ListenerOpen(Registration, tp_msquic_listen_callback, NULL, &Listener);
+	Status = MsQuic->ListenerOpen(Registration, tp_msquic_listen_callback, filename /* XXX */, &Listener);
 	if (QUIC_FAILED(Status))
 		err(EX_SOFTWARE, "cannot open MS QUIC listenr: 0x%x\n", Status);
 		/*NOTREACHED*/

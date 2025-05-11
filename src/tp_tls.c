@@ -569,7 +569,7 @@ tp_tls_server_send_to_client(struct tp *tp, ptls_context_t *ctx)
 }
 
 int
-tp_tls_server(const char *dststr, const char *servstr,
+tp_tls_server(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	const char *protostr = "tls";
@@ -590,7 +590,7 @@ tp_tls_server(const char *dststr, const char *servstr,
 
 	fprintf(stderr, "waiting on %s.%s using %s\n", dststr, servstr, protostr);
 
-	ltp = tp_listen(protostr, dststr, servstr);
+	ltp = tp_listen(protostr, dststr, servstr, filename);
 	if (ltp == NULL)
 		errx(EX_OSERR, "cannot prepare for socket");
 		/*NOTREACHED*/

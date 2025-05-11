@@ -12,7 +12,7 @@ struct tp_handle {
 	enum tp_proto th_proto;
 	const char *th_protostr;
 	int (*th_client_main)(const char *, const char *, int, char * const []);
-	int (*th_server_main)(const char *, const char *, int, char * const []);
+	int (*th_server_main)(const char *, const char *, const char *, int, char * const []);
 };
 
 static TAILQ_HEAD(, tp_handle) tp_handle_list =
@@ -21,7 +21,7 @@ static TAILQ_HEAD(, tp_handle) tp_handle_list =
 struct tp_handle *
 tp_handle_register(const char *protostr,
     int (*client)(const char *, const char *, int, char * const []),
-    int (*server)(const char *, const char *, int, char * const []))
+    int (*server)(const char *, const char *, const char *, int, char * const []))
 {
 	struct tp_handle *th;
 
@@ -62,8 +62,8 @@ tp_handle_client(struct tp_handle *th, const char *addrstr, const char *servstr,
 
 int
 tp_handle_server(struct tp_handle *th, const char *addrstr, const char *servstr,
-    int argc, char * const argv[])
+    const char *filename, int argc, char * const argv[])
 {
 
-	return (*th->th_server_main)(addrstr, servstr, argc, argv);
+	return (*th->th_server_main)(addrstr, servstr, filename, argc, argv);
 }
