@@ -617,7 +617,7 @@ tp_tls_server(const char *dststr, const char *servstr, const char *filename,
 }
 
 static int
-tp_tls_client(const char *dststr, const char *servstr,
+tp_tls_client(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	const char *protostr = "tls";
@@ -640,7 +640,7 @@ tp_tls_client(const char *dststr, const char *servstr,
 
 	fprintf(stderr, "connect to %s.%s using %s\n", dststr, servstr, protostr);
 
-	tp = tp_connect(protostr, dststr, servstr);
+	tp = tp_connect(protostr, dststr, servstr, filename);
 	if (tp == NULL)
 		errx(EX_OSERR, "cannot connect to the server");
 		/*NOTREACHED*/

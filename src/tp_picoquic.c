@@ -216,7 +216,7 @@ tp_picoquic_client_loop_cb(picoquic_quic_t *quic,
 }
 
 static int
-tp_picoquic_client(const char *dststr, const char *servstr,
+tp_picoquic_client(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	picoquic_quic_t *quic;
@@ -228,7 +228,7 @@ tp_picoquic_client(const char *dststr, const char *servstr,
 	quic = picoquic_create(TP_PICOQUIC_CLIENT_MAXCONN,
 	    NULL, NULL, /* no client certificate and key */
 	    NULL, TP_PICOQUIC_ALPN,
-	    tp_picoquic_client_cb, NULL, /* no arg. for now. */
+	    tp_picoquic_client_cb, NULL /* XXX */, /* no arg. for now. */
 	    NULL, NULL, NULL, picoquic_current_time(),
 	    NULL, NULL, NULL, 0);
 	if (quic == NULL)

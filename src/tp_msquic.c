@@ -252,7 +252,7 @@ tp_msquic_client_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 {
 	QUIC_STATUS Status;
 
-	fprintf(stderr, "client connection: 0x%x\n", ev->Type);
+	fprintf(stderr, "client connection: 0x%x, ctx: %p\n", ev->Type, ctx);
 
 	Status = QUIC_STATUS_SUCCESS;
 	switch (ev->Type) {
@@ -287,7 +287,7 @@ tp_msquic_client_connection_callback(HQUIC c, void *ctx, QUIC_CONNECTION_EVENT *
 }
 
 static int
-tp_msquic_client(const char *dststr, const char *servstr,
+tp_msquic_client(const char *dststr, const char *servstr, const char *filename,
     int argc, char * const argv[])
 {
 	QUIC_STATUS Status;
