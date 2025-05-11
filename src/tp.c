@@ -1,6 +1,8 @@
+#include <sys/param.h>
 /* XXX: better to automatically detect by cmake or automake... */
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(linux)
 #define HAVE_TCP_INFO
+#define HAVE_TCP_CONGESTION
 #endif
 
 #include <sys/types.h>
@@ -160,6 +162,22 @@ tp_set_send(struct tp *tp, ssize_t (*cb)(struct tp *, int, const void *, size_t,
 {
 
 	tp->tp_send = cb;
+}
+
+int
+tp_set_cc(struct tp *tp)
+{
+#ifdef HAVE_TCP_CONGESTION
+	const char *ccstr = "bbr";
+	int error;
+
+	error = setsockopt(tp->to_sock, IPPROTO_TCP, TCP_CONGESTION, ccstr, strlen(ccstr));
+	if (error == -1)
+		perror("setsockopt");
+	return error;
+#else /* HAVE_TCP_CONGESTION */
+	return -1;
+#endif /* ! HAVE_TCP_CONGESTION */
 }
 
 int
