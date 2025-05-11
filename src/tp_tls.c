@@ -590,7 +590,6 @@ tp_tls_server(struct tp_option *to, int argc, char * const argv[])
 	fprintf(stderr, "waiting on %s.%s using %s\n",
 	    to->to_addrname, to->to_servicename, to->to_protoname);
 
-	to->to_protoname = "tls"; /* XXX */
 	ltp = tp_listen(to);
 	if (ltp == NULL)
 		errx(EX_OSERR, "cannot prepare for socket");
@@ -637,7 +636,6 @@ tp_tls_client(struct tp_option *to, int argc, char * const argv[])
 	if (argc != 0)
 		errx(EX_USAGE, "extra argument(s)");
 
-	to->to_protoname = "tls"; /* XXX */
 	fprintf(stderr, "connect to %s.%s using %s\n",
 	    to->to_addrname, to->to_servicename, to->to_protoname);
 

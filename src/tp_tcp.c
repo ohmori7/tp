@@ -11,7 +11,6 @@ tp_tcp_client(struct tp_option *to, int argc, char * const argv[])
 {
 	struct tp *tp;
 
-	to->to_protoname = "tcp"; /* XXX */
 	fprintf(stderr, "connect to %s.%s using %s\n",
 	    to->to_addrname, to->to_servicename, to->to_protoname);
 
@@ -31,7 +30,6 @@ tp_tcp_server(struct tp_option *to, int argc, char * const argv[])
 {
 	struct tp *ltp, *tp;
 
-	to->to_protoname = "tcp"; /* XXX */
 	fprintf(stderr, "waiting on %s.%s using %s\n",
 	    to->to_addrname, to->to_servicename, to->to_protoname);
 
